@@ -94,7 +94,7 @@
     "max_composition_depth": 4,
     "max_agent_invocations": 40,
     "max_remote_calls": 40,
-    "max_elapsed_seconds": 300,
+    "max_elapsed_seconds": 900,
     "note": "Finite bounds per spec section 3.1. Repeated invocation of the same agent is not itself a cycle. The orchestrator does one model round-trip per delegation, so a full plan-work-verify-repair pass over five agents needs well above a dozen remote calls; bounds are set to comfortably fit one loop plus a repair iteration while staying finite."
   },
   "model_hints": {

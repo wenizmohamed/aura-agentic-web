@@ -517,6 +517,48 @@ function attachRouterFlag(err, flagInfo) {
   return err;
 }
 
+function parseJsonOrSseError(rawText) {
+  if (!rawText || typeof rawText !== "string") return null;
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    const lines = rawText.split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("data:")) {
+        const payload = trimmed.slice(5).trim();
+        if (payload && payload !== "[DONE]") {
+          try {
+            return JSON.parse(payload);
+          } catch {}
+        }
+      }
+    }
+    return null;
+  }
+}
+
+function isStreamUnsupportedError(status, data, rawText) {
+  if (status !== 400) return false;
+  const obj = Array.isArray(data) ? data[0] : data;
+  const errObj =
+    obj && typeof obj === "object" && obj.error && typeof obj.error === "object"
+      ? obj.error
+      : null;
+  const param = String(
+    (errObj && (errObj.param || errObj.field)) ||
+      (obj && typeof obj === "object" && obj.field) ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+  if (param === "stream") return true;
+  const errText = extractRouterError(data, rawText);
+  return /\bstream(?:ing)?\b[^\n]{0,60}\b(?:not\s+supported|unsupported|does\s+not\s+support|doesn't\s+support|disabled|not\s+allowed|must\s+be\s+false)\b|\b(?:unsupported|does\s+not\s+support|doesn't\s+support)[^\n]{0,50}\bstream(?:ing)?\b/i.test(
+    errText
+  );
+}
+
 export class AuraRuntime {
   constructor({ router, onEvent } = {}) {
     this.router = router || null; // { baseUrl, apiKey, model } or { demo: true, model }
@@ -527,12 +569,13 @@ export class AuraRuntime {
       max_composition_depth: 4,
       max_agent_invocations: 40,
       max_remote_calls: 40,
-      max_elapsed_seconds: 300
+      max_elapsed_seconds: 900
     };
     this._invocations = 0;
     this._remoteCalls = 0;
     this._startedAt = 0;
     this._preferRelayFor = null;
+    this._streamUnsupportedFor = null;
   }
 
   setRouter(router) {
@@ -543,6 +586,7 @@ export class AuraRuntime {
     if (prevUrl !== nextUrl || !nextUrl) {
       this._preferRelayFor = null;
     }
+    this._streamUnsupportedFor = null;
     this.router = router || null;
   }
 
@@ -827,8 +871,329 @@ export class AuraRuntime {
     return this.loadNetwork(def);
   }
 
-  // --- OpenAI-compatible model call ---
-  async _model(messages, functions) {
+  // --- Consume an OpenAI-compatible SSE stream into an assistant message ---
+  async _consumeSseStream(
+    res,
+    preReadText,
+    { agentName, isDemo, targetUrl, contentType, upstreamContentType }
+  ) {
+    let contentAcc = "";
+    let reasoningAcc = "";
+    const toolCallsMap = new Map();
+    let sawChoicesChunk = false;
+    let sawDone = false;
+    let lastEmitAt = 0;
+    let lastEmittedReasoning = 0;
+    let lastEmittedContent = 0;
+    let lastEmittedTools = 0;
+    let rawSample = "";
+    let currentEventType = "";
+    const pendingDataLines = [];
+
+    const maybeEmitStream = (force = false) => {
+      const rLen = reasoningAcc.length;
+      const cLen = contentAcc.length;
+      const tLen = toolCallsMap.size;
+      if (rLen === 0 && cLen === 0 && tLen === 0) return;
+      if (
+        rLen === lastEmittedReasoning &&
+        cLen === lastEmittedContent &&
+        tLen === lastEmittedTools
+      ) {
+        return;
+      }
+      const now = Date.now();
+      if (!force && lastEmitAt > 0 && now - lastEmitAt < 250) return;
+      lastEmitAt = now;
+      lastEmittedReasoning = rLen;
+      lastEmittedContent = cLen;
+      lastEmittedTools = tLen;
+      this.onEvent({
+        type: "agent_stream",
+        agent: agentName || null,
+        reasoningChars: rLen,
+        contentChars: cLen,
+        toolCalls: tLen
+      });
+    };
+
+    const handleParsedChunk = (chunk, rawChunkText) => {
+      if (!chunk || typeof chunk !== "object" || Array.isArray(chunk)) return;
+
+      if (chunk.error || currentEventType === "error") {
+        const errPayload = chunk.error ? chunk : { error: chunk };
+        const err = new Error(
+          "Router error: " + extractRouterError(errPayload, rawChunkText)
+        );
+        if (!isDemo) {
+          attachRouterFlag(err, {
+            status: res.status,
+            data: errPayload,
+            rawText: rawChunkText,
+            contentType,
+            upstreamContentType,
+            url: targetUrl
+          });
+        }
+        throw err;
+      }
+
+      if (Array.isArray(chunk.choices)) {
+        if (chunk.choices.length > 0) {
+          sawChoicesChunk = true;
+        }
+        const choice = chunk.choices[0];
+        if (choice && typeof choice === "object") {
+          const delta = choice.delta || choice.message || {};
+          if (typeof delta.content === "string") {
+            contentAcc += delta.content;
+          } else if (Array.isArray(delta.content)) {
+            for (const part of delta.content) {
+              if (typeof part === "string") contentAcc += part;
+              else if (part && typeof part.text === "string") contentAcc += part.text;
+            }
+          }
+          if (typeof delta.reasoning_content === "string") {
+            reasoningAcc += delta.reasoning_content;
+          }
+          if (Array.isArray(delta.tool_calls)) {
+            for (let i = 0; i < delta.tool_calls.length; i++) {
+              const tc = delta.tool_calls[i];
+              if (!tc || typeof tc !== "object") continue;
+              const idx =
+                tc.index !== undefined &&
+                tc.index !== null &&
+                !Number.isNaN(Number(tc.index))
+                  ? Number(tc.index)
+                  : i;
+              let slot = toolCallsMap.get(idx);
+              if (!slot) {
+                slot = {
+                  id: "",
+                  type: "function",
+                  function: { name: "", arguments: "" }
+                };
+                toolCallsMap.set(idx, slot);
+              }
+              if (typeof tc.id === "string" && tc.id && !slot.id) {
+                slot.id = tc.id;
+              }
+              if (typeof tc.type === "string" && tc.type) {
+                slot.type = tc.type;
+              }
+              if (tc.function && typeof tc.function === "object") {
+                if (typeof tc.function.name === "string") {
+                  slot.function.name += tc.function.name;
+                }
+                if (typeof tc.function.arguments === "string") {
+                  slot.function.arguments += tc.function.arguments;
+                }
+              }
+            }
+          }
+          maybeEmitStream(false);
+        }
+      }
+    };
+
+    const flushPendingData = () => {
+      if (!pendingDataLines.length) return;
+      const joined = pendingDataLines.join("\n").trim();
+      pendingDataLines.length = 0;
+      if (!joined) return;
+      if (joined === "[DONE]") {
+        sawDone = true;
+        return;
+      }
+      let parsed = null;
+      try {
+        parsed = JSON.parse(joined);
+      } catch {
+        parsed = null;
+      }
+      if (parsed !== null) {
+        handleParsedChunk(parsed, joined);
+      }
+    };
+
+    const processLine = (rawLine) => {
+      const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+      if (line === "") {
+        flushPendingData();
+        currentEventType = "";
+        return;
+      }
+      if (line.startsWith(":")) {
+        return;
+      }
+      if (line.startsWith("event:")) {
+        currentEventType = line.slice(6).trim().toLowerCase();
+        return;
+      }
+      if (line.startsWith("data:")) {
+        const val = line.slice(5).trim();
+        if (!val) return;
+        if (pendingDataLines.length === 0) {
+          if (val === "[DONE]") {
+            sawDone = true;
+            return;
+          }
+          try {
+            const parsed = JSON.parse(val);
+            handleParsedChunk(parsed, val);
+            return;
+          } catch {
+            pendingDataLines.push(val);
+            return;
+          }
+        } else {
+          pendingDataLines.push(val);
+          return;
+        }
+      }
+    };
+
+    if (preReadText === null && res.body && typeof res.body.getReader === "function") {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let lineBuffer = "";
+      try {
+        while (!sawDone) {
+          if (
+            this._startedAt &&
+            (Date.now() - this._startedAt) / 1000 > this.limits.max_elapsed_seconds
+          ) {
+            try { await reader.cancel(); } catch {}
+            throw new Error("Elapsed-time limit reached.");
+          }
+          let step;
+          try {
+            step = await reader.read();
+          } catch (readErr) {
+            if (!sawChoicesChunk && !contentAcc && !reasoningAcc && toolCallsMap.size === 0) {
+              const err = new Error(
+                "Unreachable Base URL or interrupted stream: " +
+                  (readErr && readErr.message ? readErr.message : String(readErr))
+              );
+              if (!isDemo) {
+                attachRouterFlag(err, {
+                  networkError: true,
+                  isLocal: isLocalEndpointUrl(targetUrl),
+                  url: targetUrl
+                });
+              }
+              throw err;
+            }
+            throw new Error(
+              "Router stream interrupted mid-response: " +
+                (readErr && readErr.message ? readErr.message : String(readErr))
+            );
+          }
+          const { value, done } = step;
+          if (done) {
+            lineBuffer += decoder.decode();
+            break;
+          }
+          const chunkStr = decoder.decode(value, { stream: true });
+          if (rawSample.length < 1200) {
+            rawSample += chunkStr.slice(0, 1200 - rawSample.length);
+          }
+          lineBuffer += chunkStr;
+          let nlIdx;
+          while ((nlIdx = lineBuffer.indexOf("\n")) !== -1) {
+            const line = lineBuffer.slice(0, nlIdx);
+            lineBuffer = lineBuffer.slice(nlIdx + 1);
+            processLine(line);
+            if (sawDone) break;
+          }
+        }
+        if (!sawDone && lineBuffer.length > 0) {
+          processLine(lineBuffer);
+        }
+        flushPendingData();
+      } finally {
+        if (sawDone) {
+          try { await reader.cancel(); } catch {}
+        }
+        try { reader.releaseLock(); } catch {}
+      }
+    } else {
+      const fullText = preReadText !== null ? preReadText : await res.text();
+      rawSample = fullText.slice(0, 1200);
+      const lines = fullText.split("\n");
+      for (const line of lines) {
+        processLine(line);
+        if (sawDone) break;
+      }
+      flushPendingData();
+    }
+
+    maybeEmitStream(true);
+
+    const toolCallsList = [...toolCallsMap.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, slot]) => slot);
+
+    if (
+      !sawChoicesChunk &&
+      !contentAcc &&
+      !reasoningAcc &&
+      toolCallsList.length === 0
+    ) {
+      let fallbackJson = null;
+      if (rawSample && rawSample.trim().startsWith("{")) {
+        try { fallbackJson = JSON.parse(rawSample); } catch { fallbackJson = null; }
+      }
+      if (fallbackJson && fallbackJson.error) {
+        const err = new Error("Router error: " + extractRouterError(fallbackJson, rawSample));
+        if (!isDemo) {
+          attachRouterFlag(err, {
+            status: res.status,
+            data: fallbackJson,
+            rawText: rawSample,
+            contentType,
+            upstreamContentType,
+            url: targetUrl
+          });
+        }
+        throw err;
+      }
+      if (
+        fallbackJson &&
+        fallbackJson.choices &&
+        fallbackJson.choices[0] &&
+        fallbackJson.choices[0].message &&
+        typeof fallbackJson.choices[0].message === "object"
+      ) {
+        return fallbackJson.choices[0].message;
+      }
+
+      const flagContext = {
+        status: res.status,
+        data: null,
+        rawText: rawSample,
+        contentType,
+        upstreamContentType,
+        url: targetUrl
+      };
+      const err = new Error(
+        "Router returned invalid SSE stream without OpenAI choices: " +
+          extractRouterError(null, rawSample)
+      );
+      if (!isDemo) attachRouterFlag(err, flagContext);
+      throw err;
+    }
+
+    return {
+      role: "assistant",
+      content: contentAcc,
+      ...(reasoningAcc ? { reasoning_content: reasoningAcc } : {}),
+      ...(toolCallsList.length ? { tool_calls: toolCallsList } : {})
+    };
+  }
+
+  // --- OpenAI-compatible model call (SSE streaming with automatic stream:false fallback) ---
+  async _model(messages, functions, agentName) {
     if (!this.hasActiveRouter()) {
       throw new Error("No active LLM router. Use the BYOK panel to set a base URL, key, and model.");
     }
@@ -855,33 +1220,37 @@ export class AuraRuntime {
     }
 
     const requestedModel = typeof this.router.model === "string" ? this.router.model.trim() : "";
-    const body = {
-      ...(isDemo
-        ? (requestedModel && requestedModel !== "default" ? { model: requestedModel } : {})
-        : { model: requestedModel || "gpt-4o-mini" }),
-      messages,
-      stream: false,
-      ...(functions && functions.length ? { tools: functions, tool_choice: "auto" } : {})
-    };
-    const payload = JSON.stringify(body);
+    const targetUrl = isDemo ? "" : normalizeChatUrl(this.router.baseUrl);
+    const streamCacheKey = (isDemo ? "demo" : targetUrl) + "::" + (requestedModel || "default");
 
-    let res = null;
-    let rawText = "";
-    let targetUrl = "";
+    const executeRequest = async (useStream) => {
+      const body = {
+        ...(isDemo
+          ? (requestedModel && requestedModel !== "default" ? { model: requestedModel } : {})
+          : { model: requestedModel || "gpt-4o-mini" }),
+        messages,
+        stream: Boolean(useStream),
+        ...(functions && functions.length ? { tools: functions, tool_choice: "auto" } : {})
+      };
+      const payload = JSON.stringify(body);
+      const acceptHeader = useStream
+        ? "text/event-stream, application/json"
+        : "application/json";
 
-    if (isDemo) {
-      res = await fetch("/api/relay", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-use-demo": "1"
-        },
-        body: payload
-      });
-      rawText = await res.text();
-    } else {
-      const url = normalizeChatUrl(this.router.baseUrl);
-      targetUrl = url;
+      if (isDemo) {
+        const res = await fetch("/api/relay", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": acceptHeader,
+            "x-use-demo": "1"
+          },
+          body: payload
+        });
+        return { res, preReadText: null };
+      }
+
+      const url = targetUrl;
       const isLocal = isLocalEndpointUrl(url);
       const rawKey = String(this.router.apiKey || "").trim();
       const auth = /^Bearer\s+/i.test(rawKey) ? rawKey : "Bearer " + rawKey;
@@ -890,6 +1259,7 @@ export class AuraRuntime {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Accept": acceptHeader,
             "Authorization": auth,
             "x-target-url": url
           },
@@ -898,44 +1268,50 @@ export class AuraRuntime {
 
       try {
         if (!isLocal && this._preferRelayFor === url) {
+          const res = await callRelay();
+          return { res, preReadText: null };
+        }
+
+        let res = null;
+        let preReadText = null;
+        let usedRelay = false;
+        try {
+          // Try provider directly first (browser-to-provider when CORS is supported).
+          res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": acceptHeader,
+              "Authorization": auth
+            },
+            body: payload
+          });
+        } catch (directErr) {
+          if (isLocal) {
+            throw directErr;
+          }
+          // Direct call blocked by browser CORS / network TypeError -> cache relay for this URL.
+          this._preferRelayFor = url;
           res = await callRelay();
-          rawText = await res.text();
-        } else {
-          let usedRelay = false;
-          try {
-            // Try provider directly first (browser-to-provider when CORS is supported).
-            res = await fetch(url, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": auth
-              },
-              body: payload
-            });
-            rawText = await res.text();
-          } catch (directErr) {
-            if (isLocal) {
-              throw directErr;
-            }
-            // Direct call blocked by browser CORS / network TypeError -> cache relay for this URL.
+          usedRelay = true;
+        }
+
+        // Also catch browser Origin WAF / CORS gateway rejections (403/405 without valid JSON completion).
+        if (!usedRelay && !isLocal && res && (res.status === 403 || res.status === 405) && /^https:\/\//i.test(url)) {
+          const probeText = await res.text();
+          let probe = null;
+          try { probe = probeText ? JSON.parse(probeText) : null; } catch { probe = null; }
+          const hasCompletion = Boolean(probe && probe.choices && probe.choices[0] && probe.choices[0].message);
+          if (!hasCompletion) {
             this._preferRelayFor = url;
             res = await callRelay();
-            rawText = await res.text();
-            usedRelay = true;
-          }
-
-          // Also catch browser Origin WAF / CORS gateway rejections (403/405 without valid JSON completion).
-          if (!usedRelay && !isLocal && res && (res.status === 403 || res.status === 405) && /^https:\/\//i.test(url)) {
-            let probe = null;
-            try { probe = rawText ? JSON.parse(rawText) : null; } catch { probe = null; }
-            const hasCompletion = Boolean(probe && probe.choices && probe.choices[0] && probe.choices[0].message);
-            if (!hasCompletion) {
-              this._preferRelayFor = url;
-              res = await callRelay();
-              rawText = await res.text();
-            }
+            preReadText = null;
+          } else {
+            preReadText = probeText;
           }
         }
+
+        return { res, preReadText };
       } catch (netErr) {
         const err = new Error(
           isLocal
@@ -948,8 +1324,61 @@ export class AuraRuntime {
           url
         });
       }
+    };
+
+    let useStream = this._streamUnsupportedFor !== streamCacheKey;
+    let { res, preReadText } = await executeRequest(useStream);
+
+    if (!res.ok) {
+      let rawText = preReadText !== null ? preReadText : await res.text();
+      let data = parseJsonOrSseError(rawText);
+
+      // Automatic fallback if HTTP 400 complains that streaming is unsupported by this model
+      if (useStream && isStreamUnsupportedError(res.status, data, rawText)) {
+        this._streamUnsupportedFor = streamCacheKey;
+        useStream = false;
+        const retry = await executeRequest(false);
+        res = retry.res;
+        preReadText = retry.preReadText;
+        if (!res.ok) {
+          rawText = preReadText !== null ? preReadText : await res.text();
+          data = parseJsonOrSseError(rawText);
+        }
+      }
+
+      if (!res.ok) {
+        const contentType = res.headers ? res.headers.get("content-type") || "" : "";
+        const upstreamContentType = res.headers ? res.headers.get("x-upstream-content-type") || "" : "";
+        const flagContext = {
+          status: res.status,
+          data,
+          rawText,
+          contentType,
+          upstreamContentType,
+          url: targetUrl
+        };
+        const err = new Error("Router HTTP " + res.status + ": " + extractRouterError(data, rawText));
+        if (!isDemo) attachRouterFlag(err, flagContext);
+        throw err;
+      }
     }
 
+    const contentType = res.headers ? res.headers.get("content-type") || "" : "";
+    const upstreamContentType = res.headers ? res.headers.get("x-upstream-content-type") || "" : "";
+    const ctLower = contentType.toLowerCase();
+    const uctLower = upstreamContentType.toLowerCase();
+
+    if (ctLower.includes("text/event-stream") || uctLower.includes("text/event-stream")) {
+      return this._consumeSseStream(res, preReadText, {
+        agentName,
+        isDemo,
+        targetUrl,
+        contentType,
+        upstreamContentType
+      });
+    }
+
+    const rawText = preReadText !== null ? preReadText : await res.text();
     let data = null;
     try {
       data = rawText ? JSON.parse(rawText) : null;
@@ -957,8 +1386,17 @@ export class AuraRuntime {
       data = null;
     }
 
-    const contentType = res.headers ? res.headers.get("content-type") || "" : "";
-    const upstreamContentType = res.headers ? res.headers.get("x-upstream-content-type") || "" : "";
+    // Handle SSE-formatted stream returned with missing/generic Content-Type header
+    if (!data && rawText && /^\s*(?::[^\n]*\r?\n|event:\s*\S+\r?\n)*data:\s*\{/.test(rawText)) {
+      return this._consumeSseStream(res, rawText, {
+        agentName,
+        isDemo,
+        targetUrl,
+        contentType,
+        upstreamContentType
+      });
+    }
+
     const flagContext = {
       status: res.status,
       data,
@@ -968,11 +1406,6 @@ export class AuraRuntime {
       url: targetUrl
     };
 
-    if (!res.ok) {
-      const err = new Error("Router HTTP " + res.status + ": " + extractRouterError(data, rawText));
-      if (!isDemo) attachRouterFlag(err, flagContext);
-      throw err;
-    }
     if (!data || typeof data !== "object" || Array.isArray(data)) {
       const err = new Error("Router returned non-JSON or malformed payload: " + extractRouterError(data, rawText));
       if (!isDemo) attachRouterFlag(err, flagContext);
@@ -1023,7 +1456,7 @@ export class AuraRuntime {
 
     let hops = 0;
     while (hops++ < 16) {
-      const msg = await this._model(messages, callable);
+      const msg = await this._model(messages, callable, name);
       if (msg.tool_calls && msg.tool_calls.length) {
         const normalizedCalls = msg.tool_calls.map((tc, i) => ({
           ...tc,

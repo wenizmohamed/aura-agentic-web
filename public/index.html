@@ -128,10 +128,18 @@
   .ev.router_flagged{border-left-color:var(--flag);background:rgba(255,95,86,.09)}
   .ev.network_loaded,.ev.peer_loaded{border-left-color:#6ab0ff}
   .ev .ty{color:var(--faint)}.ev .k{color:var(--coral);font-weight:700}.ev .d{color:var(--muted)}
+  .preview-banner{display:none;align-items:center;justify-content:center;gap:10px;padding:8px 18px;border-bottom:1px solid rgba(226,173,85,.28);background:rgba(226,173,85,.08);font-family:var(--mono);font-size:11px;color:var(--muted2);flex-wrap:wrap}
+  .preview-banner.show{display:flex}
+  .preview-banner a{color:var(--amber);font-weight:600;border-bottom:1px dashed rgba(226,173,85,.5)}
+  .preview-banner a:hover{color:var(--coral);border-bottom-color:var(--coral)}
   footer{border-top:1px solid var(--line);padding:18px 22px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-family:var(--mono);font-size:11px;color:var(--faint)}
 </style>
 </head>
 <body>
+  <div class="preview-banner" id="previewbanner" hidden>
+    <span>Viewing an immutable deployment preview URL.</span>
+    <a href="https://aura-agentic-web.vercel.app">Open live canonical app (aura-agentic-web.vercel.app) &rarr;</a>
+  </div>
   <div class="topbar">
     <div class="mark"><div class="sq">A</div><b>AURA</b></div>
     <span class="bc">agentic-web / <span id="netname">aura-core</span></span>
@@ -271,6 +279,23 @@ function renderRoster(list) {
 }
 renderRoster(DEFAULT_AGENTS);
 
+// Show subtle canonical-domain banner if opened on an immutable Vercel deployment preview hostname
+(function checkPreviewDomain() {
+  const host = String(location.hostname || "").toLowerCase();
+  if (
+    host &&
+    host !== "aura-agentic-web.vercel.app" &&
+    (/^aura-agentic(-web)?-[a-z0-9-]+-team-auraa\.vercel\.app$/i.test(host) ||
+      /^aura-agentic-web-[a-z0-9-]+\.vercel\.app$/i.test(host))
+  ) {
+    const banner = $("previewbanner");
+    if (banner) {
+      banner.hidden = false;
+      banner.classList.add("show");
+    }
+  }
+})();
+
 // Live execution state for real-time pipeline & progress bubble
 const activeStack = [];
 const completedAgents = new Set();
@@ -278,6 +303,7 @@ let completedSteps = 0;
 let runStartedAt = 0;
 let activeBubble = null;
 let progressTimer = null;
+let streamProgress = null;
 let isRunning = false;
 let isVerifyingRouter = false;
 let routerConfigEpoch = 0;
@@ -323,6 +349,22 @@ function updateProgressBubble() {
   if (activeStack.length > 0) {
     const chain = activeStack.map((x) => x.agent).join(" \u2192 ");
     const top = activeStack[activeStack.length - 1];
+    if (streamProgress && (!streamProgress.agent || streamProgress.agent === top.agent)) {
+      const parts = [];
+      if (streamProgress.reasoningChars > 0) {
+        parts.push("thinking " + streamProgress.reasoningChars.toLocaleString("en-US") + " chars");
+      }
+      if (streamProgress.contentChars > 0) {
+        parts.push("writing " + streamProgress.contentChars.toLocaleString("en-US") + " chars");
+      }
+      if (streamProgress.toolCalls > 0) {
+        parts.push("delegating " + streamProgress.toolCalls + (streamProgress.toolCalls === 1 ? " tool" : " tools"));
+      }
+      if (parts.length > 0) {
+        activeBubble.textContent = "Running " + chain + " (" + parts.join(" \u00b7 ") + ")... " + elapsedSec + "s";
+        return;
+      }
+    }
     const stepNote = completedSteps > 0 && activeStack.length === 1
       ? ", " + completedSteps + (completedSteps === 1 ? " delegation done" : " delegations done")
       : "";
@@ -345,6 +387,16 @@ function addMsg(role, text, thinking = false) {
 }
 
 function addEv(ev) {
+  if (ev.type === "agent_stream") {
+    streamProgress = {
+      agent: ev.agent || null,
+      reasoningChars: ev.reasoningChars || 0,
+      contentChars: ev.contentChars || 0,
+      toolCalls: ev.toolCalls || 0
+    };
+    updateProgressBubble();
+    return;
+  }
   if (ev.type === "network_loaded" && Array.isArray(ev.agents) && rt) {
     $("netname").textContent = ev.name || "network";
     const built = ev.agents.map((nm) => {
@@ -363,16 +415,20 @@ function addEv(ev) {
     activeStack.length = 0;
     completedAgents.clear();
     completedSteps = 0;
+    streamProgress = null;
     runStartedAt = Date.now();
     resetPipelineStates();
     updateProgressBubble();
   } else if (ev.type === "agent_start") {
+    streamProgress = null;
     activeStack.push({ agent: ev.agent, depth: ev.depth || 0 });
     syncAgentStates();
     updateProgressBubble();
   } else if (ev.type === "agent_delegate") {
+    streamProgress = null;
     updateProgressBubble();
   } else if (ev.type === "agent_done") {
+    streamProgress = null;
     for (let i = activeStack.length - 1; i >= 0; i--) {
       if (activeStack[i].agent === ev.agent) {
         activeStack.splice(i, 1);
@@ -384,9 +440,11 @@ function addEv(ev) {
     syncAgentStates();
     updateProgressBubble();
   } else if (ev.type === "run_done") {
+    streamProgress = null;
     activeStack.length = 0;
     syncAgentStates();
   } else if (ev.type === "run_error") {
+    streamProgress = null;
     activeStack.length = 0;
     document.querySelectorAll(".agent, .stage").forEach((el) => {
       el.classList.remove("lit", "running");

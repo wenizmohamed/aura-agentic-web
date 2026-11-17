@@ -1,16 +1,27 @@
-// AURA Agentic Web - stateless BYOK + optional server-demo inference relay.
-// Most OpenAI-compatible endpoints do NOT send browser CORS headers, so a
-// direct in-browser fetch to them is blocked. This same-origin serverless
-// function forwards the request server-side (no CORS between server and
-// provider), letting the browser runtime reach any provider while staying
-// bring-your-own-key. When DEMO_API_KEY and DEMO_BASE_URL are configured on
-// the deployment, it also supports zero-setup demo routing via x-use-demo: "1"
+// AURA Agentic Web - stateless BYOK + optional server-demo Edge inference relay.
+// Runs on Vercel Edge Runtime (Web Standard Request/Response + ReadableStream)
+// so SSE completions (stream: true -> text/event-stream) pipe directly to the
+// browser with zero buffering and up to 300s streaming duration (eliminating
+// 55s/60s buffered serverless 504 timeouts on deep reasoning models such as
+// deepseek-v4-pro). When DEMO_API_KEY and DEMO_BASE_URL are configured on the
+// deployment, it also supports zero-setup demo routing via x-use-demo: "1"
 // without exposing server credentials to the browser. MIT.
 
-export const maxDuration = 60;
+export const config = {
+  runtime: "edge",
+};
 
-const UPSTREAM_TIMEOUT_MS = 55_000;
+const DEFAULT_INITIAL_HEADERS_TIMEOUT_MS = 24_000;
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Accept, Authorization, x-target-url, x-use-demo",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Expose-Headers": "x-upstream-content-type",
+  "Cache-Control": "no-store",
+};
 
 function cleanEnv(val) {
   let s = String(val || "").trim();
@@ -23,10 +34,37 @@ function cleanEnv(val) {
   return s;
 }
 
+function readEnv(key) {
+  if (typeof process !== "undefined" && process && process.env) {
+    return cleanEnv(process.env[key]);
+  }
+  return "";
+}
+
+function getInitialTimeoutMs() {
+  const raw = readEnv("RELAY_INITIAL_TIMEOUT_MS");
+  if (raw) {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed >= 50 && parsed <= 24_500) {
+      return Math.floor(parsed);
+    }
+  }
+  return DEFAULT_INITIAL_HEADERS_TIMEOUT_MS;
+}
+
+function getHeader(req, name) {
+  if (!req || !req.headers) return "";
+  if (typeof req.headers.get === "function") {
+    return String(req.headers.get(name) || "").trim();
+  }
+  const lower = name.toLowerCase();
+  return String(req.headers[lower] ?? req.headers[name] ?? "").trim();
+}
+
 function getDemoConfig() {
-  const apiKey = cleanEnv(process.env.DEMO_API_KEY);
-  const baseUrl = cleanEnv(process.env.DEMO_BASE_URL);
-  const model = cleanEnv(process.env.DEMO_MODEL) || null;
+  const apiKey = readEnv("DEMO_API_KEY");
+  const baseUrl = readEnv("DEMO_BASE_URL");
+  const model = readEnv("DEMO_MODEL") || null;
   return {
     available: Boolean(apiKey && baseUrl),
     apiKey,
@@ -48,13 +86,13 @@ function isAllowedDemoHost(hostname) {
   ) {
     return true;
   }
-  if (/^aura-agentic-web-[a-z0-9-]+\.vercel\.app$/.test(h)) {
+  if (/^aura-agentic(?:-web)?-[a-z0-9-]+\.vercel\.app$/.test(h)) {
     return true;
   }
   const runtimeVercelHosts = [
-    cleanEnv(process.env.VERCEL_URL),
-    cleanEnv(process.env.VERCEL_BRANCH_URL),
-    cleanEnv(process.env.VERCEL_PROJECT_PRODUCTION_URL),
+    readEnv("VERCEL_URL"),
+    readEnv("VERCEL_BRANCH_URL"),
+    readEnv("VERCEL_PROJECT_PRODUCTION_URL"),
   ]
     .filter(Boolean)
     .map((v) => v.toLowerCase().replace(/^https?:\/\//, "").split("/")[0]);
@@ -62,7 +100,7 @@ function isAllowedDemoHost(hostname) {
 }
 
 function isAllowedDemoCaller(req) {
-  const origin = String(req.headers["origin"] || "").trim();
+  const origin = getHeader(req, "origin");
   if (origin) {
     try {
       const parsed = new URL(origin);
@@ -71,7 +109,7 @@ function isAllowedDemoCaller(req) {
       return false;
     }
   }
-  const referer = String(req.headers["referer"] || "").trim();
+  const referer = getHeader(req, "referer");
   if (referer) {
     try {
       const parsed = new URL(referer);
@@ -144,10 +182,13 @@ function validateByokTargetUrl(rawTarget) {
   try {
     const parsed = new URL(trimmed);
     if (parsed.protocol !== "https:") return null;
+    if (parsed.username || parsed.password) return null;
     if (isBlockedHost(parsed.hostname)) return null;
     const host = parsed.hostname.replace(/^\[|\]$/g, "");
     if (!host.includes(".") && !host.includes(":")) return null;
-    if (host.startsWith(".") || host.endsWith(".")) return null;
+    if (host.startsWith(".") || host.endsWith(".") || host.includes("..")) {
+      return null;
+    }
     return parsed.href;
   } catch {
     return null;
@@ -224,79 +265,111 @@ function describeUpstreamFetchError(err) {
 }
 
 async function parseJsonBody(req) {
-  if (req.body !== undefined && req.body !== null) {
-    if (Buffer.isBuffer(req.body)) {
-      const str = req.body.toString("utf8").trim();
-      return str ? JSON.parse(str) : {};
-    }
-    if (typeof req.body === "string") {
-      const str = req.body.trim();
-      return str ? JSON.parse(str) : {};
-    }
-    if (typeof req.body === "object") {
-      return req.body;
-    }
-  }
-
-  const chunks = [];
-  let totalBytes = 0;
-  for await (const chunk of req) {
-    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
-    totalBytes += buf.length;
-    if (totalBytes > MAX_BODY_BYTES) {
+  const rawLen = getHeader(req, "content-length");
+  if (rawLen) {
+    const contentLength = Number(rawLen);
+    if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
       const err = new Error("Request body exceeds 4MB limit.");
       err.statusCode = 413;
       throw err;
     }
-    chunks.push(buf);
   }
-  const raw = Buffer.concat(chunks).toString("utf8").trim();
+
+  if (!req.body) {
+    if (typeof req.text === "function") {
+      const text = await req.text();
+      if (new TextEncoder().encode(text).byteLength > MAX_BODY_BYTES) {
+        const err = new Error("Request body exceeds 4MB limit.");
+        err.statusCode = 413;
+        throw err;
+      }
+      const trimmed = text.trim();
+      return trimmed ? JSON.parse(trimmed) : {};
+    }
+    return {};
+  }
+
+  const reader = req.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const bytes =
+        value instanceof Uint8Array ? value : new Uint8Array(value);
+      totalBytes += bytes.byteLength;
+      if (totalBytes > MAX_BODY_BYTES) {
+        try {
+          await reader.cancel();
+        } catch {}
+        const err = new Error("Request body exceeds 4MB limit.");
+        err.statusCode = 413;
+        throw err;
+      }
+      chunks.push(bytes);
+    }
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {}
+  }
+
+  if (totalBytes === 0) return {};
+  const merged = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const raw = new TextDecoder("utf-8").decode(merged).trim();
   return raw ? JSON.parse(raw) : {};
 }
 
-function sendJson(res, statusCode, data) {
-  res.statusCode = statusCode;
-  if (typeof res.status === "function") res.status(statusCode);
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  if (typeof res.json === "function") {
-    res.json(data);
-  } else {
-    res.end(JSON.stringify(data));
-  }
+function jsonResponse(statusCode, data) {
+  return new Response(JSON.stringify(data), {
+    status: statusCode,
+    headers: {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
 }
 
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, x-target-url, x-use-demo"
-  );
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Expose-Headers", "x-upstream-content-type");
-  res.setHeader("Cache-Control", "no-store");
+function buildRelayedHeaders(contentType) {
+  const headers = new Headers(CORS_HEADERS);
+  headers.set("Content-Type", contentType);
+  headers.set("x-upstream-content-type", contentType);
+  if (contentType.toLowerCase().includes("text/event-stream")) {
+    headers.set("X-Accel-Buffering", "no");
+  }
+  return headers;
+}
 
-  if (req.method === "OPTIONS") {
-    res.statusCode = 204;
-    if (typeof res.status === "function") res.status(204);
-    res.end();
-    return;
+export default async function handler(req) {
+  const method = String((req && req.method) || "GET").toUpperCase();
+
+  if (method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: CORS_HEADERS,
+    });
   }
 
-  if (req.method === "GET") {
+  if (method === "GET") {
     const demo = getDemoConfig();
-    sendJson(res, 200, {
+    return jsonResponse(200, {
       ok: true,
       demoAvailable: demo.available,
       demoModel: demo.available ? demo.model : null,
     });
-    return;
   }
 
-  if (req.method !== "POST") {
-    sendJson(res, 405, {
+  if (method !== "POST") {
+    return jsonResponse(405, {
       error: { message: "Method not allowed. Use GET or POST." },
     });
-    return;
   }
 
   let bodyObj;
@@ -304,7 +377,7 @@ export default async function handler(req, res) {
     bodyObj = await parseJsonBody(req);
   } catch (err) {
     const code = err && err.statusCode ? err.statusCode : 400;
-    sendJson(res, code, {
+    return jsonResponse(code, {
       error: {
         message:
           code === 413
@@ -312,48 +385,43 @@ export default async function handler(req, res) {
             : "Invalid JSON body in relay request.",
       },
     });
-    return;
   }
 
   if (!bodyObj || typeof bodyObj !== "object" || Array.isArray(bodyObj)) {
-    sendJson(res, 400, {
+    return jsonResponse(400, {
       error: { message: "Relay request body must be a JSON object." },
     });
-    return;
   }
 
-  const useDemo = String(req.headers["x-use-demo"] || "").trim() === "1";
+  const useDemo = getHeader(req, "x-use-demo") === "1";
   let targetUrl = "";
   let authHeader = "";
   let outBody = bodyObj;
 
   if (useDemo) {
     if (!isAllowedDemoCaller(req)) {
-      sendJson(res, 403, {
+      return jsonResponse(403, {
         error: {
           message:
             "Demo router is only available from the AURA web app; supply BYOK headers for external callers.",
         },
       });
-      return;
     }
     const demo = getDemoConfig();
     if (!demo.available) {
-      sendJson(res, 503, {
+      return jsonResponse(503, {
         error: {
           message:
             "Built-in demo router is not configured on this server. Activate your own OpenAI-compatible Base URL and API key in the router panel.",
         },
       });
-      return;
     }
     try {
       targetUrl = buildChatCompletionsUrl(demo.baseUrl);
     } catch {
-      sendJson(res, 500, {
+      return jsonResponse(500, {
         error: { message: "Server demo router base URL is misconfigured." },
       });
-      return;
     }
     authHeader = /^Bearer\s+/i.test(demo.apiKey)
       ? demo.apiKey
@@ -365,9 +433,9 @@ export default async function handler(req, res) {
       outBody.model = "gpt-4o-mini";
     }
   } else {
-    const validTarget = validateByokTargetUrl(req.headers["x-target-url"]);
+    const validTarget = validateByokTargetUrl(getHeader(req, "x-target-url"));
     if (!validTarget) {
-      sendJson(res, 400, {
+      return jsonResponse(400, {
         error: {
           message:
             "Invalid Base URL: must be a public HTTPS OpenAI-compatible endpoint.",
@@ -375,15 +443,14 @@ export default async function handler(req, res) {
           field: "baseUrl",
         },
       });
-      return;
     }
     targetUrl = validTarget;
-    authHeader = String(req.headers["authorization"] || "").trim();
+    authHeader = getHeader(req, "authorization");
     if (
       authHeader &&
       (/[\0\r\n]/.test(authHeader) || /[^\x20-\x7e\t]/.test(authHeader))
     ) {
-      sendJson(res, 401, {
+      return jsonResponse(401, {
         error: {
           message:
             "Invalid API key: contains illegal non-ASCII or control characters.",
@@ -391,85 +458,142 @@ export default async function handler(req, res) {
           field: "apiKey",
         },
       });
-      return;
     }
   }
 
   const payload = JSON.stringify(outBody);
+  const wantsStream = Boolean(outBody && outBody.stream === true);
+  const initialTimeoutMs = getInitialTimeoutMs();
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, initialTimeoutMs);
 
   try {
     const upstream = await fetch(targetUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json",
-        "User-Agent": "aura-agentic-web-relay/0.2",
+        Accept: wantsStream
+          ? "text/event-stream, application/json"
+          : "application/json",
+        "User-Agent": "aura-agentic-web-relay/0.3-edge",
         ...(authHeader ? { Authorization: authHeader } : {}),
       },
       body: payload,
       signal: controller.signal,
     });
 
-    const text = await upstream.text();
+    const isNullBodyStatus =
+      upstream.status === 101 ||
+      upstream.status === 204 ||
+      upstream.status === 205 ||
+      upstream.status === 304;
+
     const rawContentType =
       upstream.headers && typeof upstream.headers.get === "function"
-        ? upstream.headers.get("content-type")
+        ? String(upstream.headers.get("content-type") || "").trim()
         : "";
-    const sniffedHtml =
-      !rawContentType && /^\s*<(?:!doctype\s+html|html)\b/i.test(text);
-    const contentType =
-      rawContentType ||
-      (sniffedHtml
-        ? "text/html; charset=utf-8"
-        : "application/json; charset=utf-8");
 
-    res.statusCode = upstream.status;
-    if (typeof res.status === "function") res.status(upstream.status);
-    res.setHeader("Content-Type", contentType);
-    res.setHeader("x-upstream-content-type", contentType);
-    if (typeof res.send === "function") {
-      res.send(text);
-    } else {
-      res.end(text);
+    if (rawContentType || isNullBodyStatus || !upstream.body) {
+      // Clear initial-headers timeout IMMEDIATELY so SSE ReadableStreams
+      // continue flowing freely for up to 300s without being aborted!
+      clearTimeout(timeoutId);
+      const contentType = rawContentType || "application/json; charset=utf-8";
+      return new Response(isNullBodyStatus ? null : upstream.body, {
+        status: upstream.status,
+        headers: buildRelayedHeaders(contentType),
+      });
     }
+
+    // Fallback only when upstream omitted Content-Type completely:
+    // peek the very first chunk to sniff HTML/SSE/JSON without buffering the stream.
+    const reader = upstream.body.getReader();
+    const first = await reader.read();
+    clearTimeout(timeoutId);
+
+    if (first.done) {
+      try {
+        reader.releaseLock();
+      } catch {}
+      return new Response("", {
+        status: upstream.status,
+        headers: buildRelayedHeaders("application/json; charset=utf-8"),
+      });
+    }
+
+    const firstBytes =
+      first.value instanceof Uint8Array
+        ? first.value
+        : new Uint8Array(first.value);
+    const sample = new TextDecoder("utf-8", { fatal: false }).decode(
+      firstBytes.subarray(0, 512)
+    );
+    const contentType = /^\s*<(?:!doctype\s+html|html)\b/i.test(sample)
+      ? "text/html; charset=utf-8"
+      : /^\s*(?:data:|event:|id:|retry:|:)/i.test(sample)
+      ? "text/event-stream; charset=utf-8"
+      : "application/json; charset=utf-8";
+
+    const replayStream = new ReadableStream({
+      start(ctrl) {
+        ctrl.enqueue(firstBytes);
+      },
+      async pull(ctrl) {
+        const { done, value } = await reader.read();
+        if (done) {
+          ctrl.close();
+        } else {
+          ctrl.enqueue(
+            value instanceof Uint8Array ? value : new Uint8Array(value)
+          );
+        }
+      },
+      cancel(reason) {
+        return reader.cancel(reason);
+      },
+    });
+
+    return new Response(replayStream, {
+      status: upstream.status,
+      headers: buildRelayedHeaders(contentType),
+    });
   } catch (err) {
+    clearTimeout(timeoutId);
     if (
+      timedOut ||
       controller.signal.aborted ||
       (err && (err.name === "AbortError" || err.name === "TimeoutError"))
     ) {
-      sendJson(res, 504, {
+      const secs = Math.max(1, Math.round(initialTimeoutMs / 1000));
+      return jsonResponse(504, {
         error: {
-          message:
-            "Upstream LLM provider timed out after 55 seconds via /api/relay.",
+          message: `Upstream LLM provider timed out after ${secs} seconds waiting for initial response via /api/relay.`,
           code: "relay_timeout",
         },
       });
-      return;
     }
     if (useDemo) {
-      sendJson(res, 502, {
+      return jsonResponse(502, {
         error: {
           message: "Relay upstream request failed: Upstream connection failed",
           code: "relay_failed",
         },
       });
-      return;
     }
     let host = "upstream";
     try {
       host = new URL(targetUrl).host || "upstream";
     } catch {}
     const safeDetail = describeUpstreamFetchError(err);
-    sendJson(res, 502, {
+    return jsonResponse(502, {
       error: {
         message: "Unreachable Base URL (" + host + "): " + safeDetail,
         code: "unreachable_base_url",
         field: "baseUrl",
       },
     });
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
