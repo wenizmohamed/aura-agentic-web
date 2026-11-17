@@ -11,7 +11,7 @@
   :root{
     --bg:#0b0a09; --bg2:#111010; --surface:#15140f; --surface2:#1b1914; --raise:#201d17;
     --paper:#ECE9E3; --muted:#817B71; --muted2:#B0AAA0; --faint:#5a544b;
-    --coral:#EA7A5E; --coral2:#f0906f; --green:#54CF85; --amber:#E2AD55;
+    --coral:#EA7A5E; --coral2:#f0906f; --green:#54CF85; --amber:#E2AD55; --flag:#ff5f56;
     --line:rgba(236,233,227,.09); --line2:rgba(236,233,227,.055);
     --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
     --serif:"Fraunces",Georgia,serif; --sans:"Inter",system-ui,sans-serif;
@@ -104,18 +104,28 @@
   /* right rail */
   .block{margin-bottom:20px}
   .block label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.8px;color:var(--muted);margin:9px 0 4px;text-transform:uppercase}
-  .block input{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--paper);border-radius:7px;padding:9px 11px;font-size:12px;outline:none;font-family:var(--mono);transition:border .15s,box-shadow .15s}
+  .block input{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--paper);border-radius:7px;padding:9px 11px;font-size:12px;outline:none;font-family:var(--mono);transition:border .15s,box-shadow .15s,background .15s}
   .block input:focus{border-color:var(--coral)}
   .block input.attn,.composer input.attn{border-color:var(--coral);box-shadow:0 0 0 2px rgba(234,122,94,.22)}
+  .block input.flagged-input{border-color:var(--flag);background:rgba(255,95,86,.06);box-shadow:0 0 0 2px rgba(255,95,86,.26)}
+  .block input.flagged-input:focus{border-color:var(--flag)}
   .block .row{display:flex;gap:7px;margin-top:11px}.block .row .btn{flex:1;padding:9px 0;font-size:12.5px}
   .block .row .btn.sm{flex:0 0 74px}
-  .st{font-family:var(--mono);font-size:11px;margin-top:9px;line-height:1.45}.st.ok{color:var(--green)}.st.err{color:var(--coral)}
+  .st{font-family:var(--mono);font-size:11px;margin-top:9px;line-height:1.45}
+  .st.ok{color:var(--green)}
+  .st.warn{color:var(--amber)}
+  .st.err{color:var(--coral)}
+  .st.err.flagged{border:1px solid rgba(255,95,86,.45);border-left:3px solid var(--flag);background:rgba(255,95,86,.09);border-radius:7px;padding:9px 11px;margin-top:10px;color:var(--paper)}
+  .st.err.flagged .flag-badge{display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:#1a0907;background:#ff6b57;padding:2px 7px;border-radius:4px;margin-bottom:5px}
+  .st.err.flagged .flag-msg{display:block;color:var(--paper);font-size:11px;line-height:1.45;word-break:break-word}
   .psub{font-size:11px;color:var(--faint);margin:2px 0 10px;line-height:1.5}
   .trace{max-height:240px;overflow:auto;font-family:var(--mono);font-size:11px;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);padding:10px}
   .ev{padding:6px 8px;margin-bottom:5px;border-radius:6px;border-left:2px solid var(--line);background:rgba(0,0,0,.25);animation:si .2s}
   @keyframes si{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:none}}
   .ev.agent_start,.ev.agent_delegate{border-left-color:var(--amber)}.ev.agent_done{border-left-color:var(--green)}
   .ev.run_start,.ev.run_done{border-left-color:var(--coral)}.ev.run_error{border-left-color:var(--coral);background:rgba(234,122,94,.08)}
+  .ev.router_verified{border-left-color:var(--green)}
+  .ev.router_flagged{border-left-color:var(--flag);background:rgba(255,95,86,.09)}
   .ev.network_loaded,.ev.peer_loaded{border-left-color:#6ab0ff}
   .ev .ty{color:var(--faint)}.ev .k{color:var(--coral);font-weight:700}.ev .d{color:var(--muted)}
   footer{border-top:1px solid var(--line);padding:18px 22px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-family:var(--mono);font-size:11px;color:var(--faint)}
@@ -184,7 +194,7 @@
         <label for="model">Model</label>
         <input id="model" placeholder="gpt-4o-mini" autocomplete="off" />
         <div class="row"><button class="btn p" id="save" type="button">Activate</button><button class="btn g sm" id="clearrouter" type="button">Clear</button></div>
-        <div class="st" id="rstatus"></div>
+        <div class="st" id="rstatus" role="status" aria-live="polite"></div>
       </div>
       <div class="block">
         <div class="sechead"><span class="lab">Peer agent site</span></div>
@@ -209,13 +219,25 @@
   </footer>
 
 <script type="module">
-import { AuraRuntime } from "./runtime.js";
+import {
+  AuraRuntime,
+  normalizeChatUrl,
+  validateRouterInputs,
+  classifyRouterError
+} from "./runtime.js";
+
 const $ = (id) => document.getElementById(id);
 const chat = $("chat"), trace = $("trace"), roster = $("roster");
 
 const STORAGE_BASE = "aura_byok_base_url";
 const STORAGE_MODEL = "aura_byok_model";
 const STORAGE_KEY = "aura_byok_api_key";
+
+const FIELD_TO_INPUT_ID = {
+  baseUrl: "base",
+  apiKey: "key",
+  model: "model"
+};
 
 const DEFAULT_AGENTS = [
   { name: "orchestrator", role: "front agent", front: true, ds: "Plans the task, delegates across the network, runs the plan-work-verify-repair loop, synthesizes one answer." },
@@ -257,6 +279,8 @@ let runStartedAt = 0;
 let activeBubble = null;
 let progressTimer = null;
 let isRunning = false;
+let isVerifyingRouter = false;
+let routerConfigEpoch = 0;
 let demoInfo = { available: false, model: null };
 
 function resetPipelineStates() {
@@ -374,6 +398,10 @@ function addEv(ev) {
   let detail = "";
   if (ev.type === "agent_delegate") {
     detail = '<span class="k">' + esc(ev.from) + ' &rarr; ' + esc(ev.to) + '</span> <span class="d">d' + esc(ev.depth) + '</span>';
+  } else if (ev.type === "router_flagged") {
+    detail = '<span class="k">' + esc(ev.badge || ev.field || "FLAGGED") + '</span> <span class="d">' + esc(String(ev.message || "").slice(0, 68)) + '</span>';
+  } else if (ev.type === "router_verified") {
+    detail = '<span class="k">' + esc(ev.model || "router") + '</span> <span class="d">' + (ev.viaRelay ? "via relay" : "direct") + '</span>';
   } else if (ev.agent) {
     detail = '<span class="k">' + esc(ev.agent) + '</span> <span class="d">d' + esc(ev.depth) + '</span>';
   } else if (ev.type === "run_done") {
@@ -411,12 +439,40 @@ async function loadAura() {
 }
 
 function clearAttn() {
-  $("base").classList.remove("attn");
-  $("key").classList.remove("attn");
+  ["base", "key", "model"].forEach((id) => {
+    const el = $(id);
+    el.classList.remove("attn", "flagged-input");
+    el.removeAttribute("aria-invalid");
+  });
   $("q").classList.remove("attn");
 }
+
+function renderRouterFlag(flag, { focus = true, fallbackNote = "" } = {}) {
+  clearAttn();
+  const field = (flag && flag.field) || "baseUrl";
+  const targetId = FIELD_TO_INPUT_ID[field] || "base";
+  const inputEl = $(targetId);
+  if (inputEl) {
+    inputEl.classList.add("flagged-input");
+    inputEl.setAttribute("aria-invalid", "true");
+    if (focus) inputEl.focus();
+  }
+  const badgeText = "FLAGGED: " + ((flag && flag.badge) || "INVALID ROUTER");
+  const msgText =
+    ((flag && flag.message) || "Router verification failed.") +
+    (fallbackNote ? " " + fallbackNote : "");
+  const st = $("rstatus");
+  st.className = "st err flagged";
+  st.innerHTML =
+    '<span class="flag-badge">' + esc(badgeText) + '</span>' +
+    '<span class="flag-msg">' + esc(msgText) + '</span>';
+}
+
 ["base", "key", "model", "q"].forEach((id) => {
-  $(id).addEventListener("input", () => $(id).classList.remove("attn"));
+  $(id).addEventListener("input", () => {
+    $(id).classList.remove("attn", "flagged-input");
+    $(id).removeAttribute("aria-invalid");
+  });
 });
 
 function saveStorage(base, model, key) {
@@ -439,7 +495,25 @@ function clearStorage() {
   } catch {}
 }
 
+async function fetchDemoAvailability() {
+  try {
+    const res = await fetch("/api/relay", { method: "GET", headers: { "Accept": "application/json" } });
+    if (res.ok) {
+      const info = await res.json();
+      demoInfo = {
+        available: Boolean(info && info.demoAvailable),
+        model: (info && info.demoModel) || null
+      };
+    }
+  } catch {
+    // Same-origin /api/relay unavailable (e.g. static file host without functions); BYOK still works directly when CORS allows.
+  }
+}
+
+const demoReady = fetchDemoAvailability();
+
 async function initRouter() {
+  const myEpoch = routerConfigEpoch;
   let savedBase = "", savedModel = "", savedKey = "";
   try {
     savedBase = (localStorage.getItem(STORAGE_BASE) || "").trim();
@@ -454,28 +528,80 @@ async function initRouter() {
   if (savedKey) $("key").value = savedKey;
 
   if (savedBase && savedKey) {
-    const activeModel = savedModel || "gpt-4o-mini";
-    rt.setRouter({ baseUrl: savedBase, apiKey: savedKey, model: activeModel });
-    $("rstatus").className = "st ok";
-    $("rstatus").textContent = "Router active - " + activeModel;
-  }
+    $("rstatus").className = "st warn";
+    $("rstatus").textContent = "Verifying saved router...";
+    const [check] = await Promise.all([
+      rt.validateRouter({ baseUrl: savedBase, apiKey: savedKey, model: savedModel }),
+      demoReady
+    ]);
+    if (myEpoch !== routerConfigEpoch) return;
 
-  try {
-    const res = await fetch("/api/relay", { method: "GET", headers: { "Accept": "application/json" } });
-    if (res.ok) {
-      const info = await res.json();
-      demoInfo = {
-        available: Boolean(info && info.demoAvailable),
-        model: (info && info.demoModel) || null
-      };
-      if (!rt.hasActiveRouter() && demoInfo.available) {
+    if (check.ok) {
+      const verifiedModel = check.model || savedModel || "gpt-4o-mini";
+      rt.setRouter({ baseUrl: savedBase, apiKey: savedKey, model: verifiedModel });
+      if (check.viaRelay) {
+        try { rt._preferRelayFor = normalizeChatUrl(savedBase); } catch {}
+      }
+      clearAttn();
+      $("rstatus").className = "st ok";
+      $("rstatus").textContent = "Verified & active - " + verifiedModel;
+    } else {
+      clearStorage();
+      if (demoInfo.available) {
         rt.setRouter({ demo: true, model: demoInfo.model || "default" });
-        $("rstatus").className = "st ok";
-        $("rstatus").textContent = "Built-in live router ready (or enter BYOK)";
+        renderRouterFlag(check, {
+          focus: false,
+          fallbackNote: "(Broken saved BYOK cleared; built-in router active.)"
+        });
+      } else {
+        rt.setRouter(null);
+        renderRouterFlag(check, { focus: false });
       }
     }
-  } catch {
-    // Same-origin /api/relay unavailable (e.g. static file host without functions); BYOK still works directly when CORS allows.
+    return;
+  }
+
+  // Catch stale malformed Base URL or key left in partial storage
+  if (savedBase && !savedKey) {
+    const partialCheck = validateRouterInputs({
+      baseUrl: savedBase,
+      apiKey: "placeholder-key",
+      model: savedModel
+    });
+    if (!partialCheck.ok) {
+      clearStorage();
+      await demoReady;
+      if (myEpoch !== routerConfigEpoch) return;
+      if (demoInfo.available) {
+        rt.setRouter({ demo: true, model: demoInfo.model || "default" });
+      }
+      renderRouterFlag(partialCheck, { focus: false });
+      return;
+    }
+  } else if (!savedBase && savedKey) {
+    const partialKeyCheck = validateRouterInputs({
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: savedKey,
+      model: savedModel
+    });
+    if (!partialKeyCheck.ok) {
+      clearStorage();
+      await demoReady;
+      if (myEpoch !== routerConfigEpoch) return;
+      if (demoInfo.available) {
+        rt.setRouter({ demo: true, model: demoInfo.model || "default" });
+      }
+      renderRouterFlag(partialKeyCheck, { focus: false });
+      return;
+    }
+  }
+
+  await demoReady;
+  if (myEpoch !== routerConfigEpoch) return;
+  if (!rt.hasActiveRouter() && demoInfo.available) {
+    rt.setRouter({ demo: true, model: demoInfo.model || "default" });
+    $("rstatus").className = "st ok";
+    $("rstatus").textContent = "Built-in live router ready (or enter BYOK)";
   }
 }
 
@@ -499,26 +625,64 @@ const routerReady = initRouter();
   $("suggest").appendChild(c);
 });
 
-function activateByok() {
+async function activateByok() {
+  if (isVerifyingRouter) return;
+  const myEpoch = ++routerConfigEpoch;
   const base = $("base").value.trim();
   const key = $("key").value.trim();
-  const model = $("model").value.trim() || "gpt-4o-mini";
+  const modelInput = $("model").value.trim();
+  const model = modelInput || "gpt-4o-mini";
+
   clearAttn();
-  if (!base || !key) {
-    $("rstatus").className = "st err";
-    $("rstatus").textContent = "Enter your OpenAI-compatible Base URL + API key and click Activate first.";
-    if (!base) $("base").classList.add("attn");
-    if (!key) $("key").classList.add("attn");
-    (!base ? $("base") : $("key")).focus();
-    return;
+  isVerifyingRouter = true;
+  $("save").disabled = true;
+  $("save").textContent = "Checking...";
+  $("rstatus").className = "st warn";
+  $("rstatus").textContent = "Verifying Base URL & API key...";
+
+  try {
+    const check = await rt.validateRouter({
+      baseUrl: base,
+      apiKey: key,
+      model: modelInput
+    });
+    if (myEpoch !== routerConfigEpoch) return;
+
+    if (!check.ok) {
+      await demoReady;
+      if (myEpoch !== routerConfigEpoch) return;
+      let fallbackNote = "";
+      if (!rt.hasActiveRouter() && demoInfo.available) {
+        rt.setRouter({ demo: true, model: demoInfo.model || "default" });
+        fallbackNote = "(Built-in live router kept active.)";
+      } else if (rt.router && rt.router.demo === true) {
+        fallbackNote = "(Built-in live router kept active.)";
+      } else if (rt.hasActiveRouter()) {
+        fallbackNote = "(Previous verified router kept active.)";
+      }
+      renderRouterFlag(check, { focus: true, fallbackNote });
+      return;
+    }
+
+    const verifiedModel = check.model || model;
+    saveStorage(base, verifiedModel, key);
+    rt.setRouter({ baseUrl: base, apiKey: key, model: verifiedModel });
+    if (check.viaRelay) {
+      try { rt._preferRelayFor = normalizeChatUrl(base); } catch {}
+    }
+    clearAttn();
+    $("rstatus").className = "st ok";
+    $("rstatus").textContent = "Verified & active - " + verifiedModel;
+  } finally {
+    if (myEpoch === routerConfigEpoch) {
+      isVerifyingRouter = false;
+      $("save").disabled = false;
+      $("save").textContent = "Activate";
+    }
   }
-  saveStorage(base, model, key);
-  rt.setRouter({ baseUrl: base, apiKey: key, model });
-  $("rstatus").className = "st ok";
-  $("rstatus").textContent = "Router active - " + model;
 }
 
-$("save").onclick = activateByok;
+$("save").onclick = () => { activateByok(); };
 ["base", "key", "model"].forEach((id) => {
   $(id).addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
@@ -528,12 +692,17 @@ $("save").onclick = activateByok;
   });
 });
 
-$("clearrouter").onclick = () => {
+$("clearrouter").onclick = async () => {
+  routerConfigEpoch++;
+  isVerifyingRouter = false;
+  $("save").disabled = false;
+  $("save").textContent = "Activate";
   clearStorage();
   clearAttn();
   $("base").value = "";
   $("key").value = "";
   $("model").value = "";
+  await demoReady;
   if (demoInfo.available) {
     rt.setRouter({ demo: true, model: demoInfo.model || "default" });
     $("rstatus").className = "st ok";
@@ -575,10 +744,20 @@ async function run() {
   await Promise.allSettled([auraReady, routerReady]);
 
   if (!rt.hasActiveRouter()) {
+    const baseVal = $("base").value.trim();
+    const keyVal = $("key").value.trim();
+    const modelVal = $("model").value.trim();
+    if (baseVal || keyVal) {
+      const check = validateRouterInputs({ baseUrl: baseVal, apiKey: keyVal, model: modelVal });
+      if (!check.ok) {
+        renderRouterFlag(check, { focus: true });
+        return;
+      }
+    }
     $("rstatus").className = "st err";
     $("rstatus").textContent = "Enter your OpenAI-compatible Base URL + API key and click Activate first.";
-    const baseEmpty = !$("base").value.trim();
-    const keyEmpty = !$("key").value.trim();
+    const baseEmpty = !baseVal;
+    const keyEmpty = !keyVal;
     if (baseEmpty) $("base").classList.add("attn");
     if (keyEmpty) $("key").classList.add("attn");
     const focusEl = baseEmpty ? $("base") : $("key");
@@ -606,13 +785,21 @@ async function run() {
   activeBubble = addMsg("aura", "Starting AURA network... 0s", true);
   progressTimer = setInterval(updateProgressBubble, 1000);
 
+  let flaggedMidRun = false;
   try {
     const ans = await rt.run(q);
     activeBubble.classList.remove("thinking");
     activeBubble.textContent = ans || "(empty)";
   } catch (e) {
     activeBubble.classList.remove("thinking");
-    activeBubble.textContent = "Error: " + (e && e.message ? e.message : String(e));
+    const flag = (e && e.routerFlag) || classifyRouterError(e);
+    if (flag && (!rt.router || !rt.router.demo)) {
+      flaggedMidRun = true;
+      renderRouterFlag(flag, { focus: true });
+      activeBubble.textContent = "Router flagged (" + flag.badge + "): " + flag.message;
+    } else {
+      activeBubble.textContent = "Error: " + (e && e.message ? e.message : String(e));
+    }
   } finally {
     clearInterval(progressTimer);
     progressTimer = null;
@@ -622,7 +809,7 @@ async function run() {
     $("send").disabled = false;
     $("send").textContent = "Run";
     if (finalEl) chat.scrollTop = chat.scrollHeight;
-    $("q").focus();
+    if (!flaggedMidRun) $("q").focus();
   }
 }
 

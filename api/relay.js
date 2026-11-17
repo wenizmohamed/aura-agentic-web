@@ -92,7 +92,9 @@ function isBlockedHost(hostname) {
     h === "localhost" ||
     h === "0.0.0.0" ||
     h === "::1" ||
-    h.endsWith(".localhost")
+    h === "::" ||
+    h.endsWith(".localhost") ||
+    h.endsWith(".local")
   ) {
     return true;
   }
@@ -108,6 +110,13 @@ function isBlockedHost(hostname) {
   if (m172) {
     const second = Number(m172[1]);
     if (second >= 16 && second <= 31) return true;
+  }
+  if (
+    /^(fc|fd)[0-9a-f]{2}:/i.test(h) ||
+    /^fe[89ab][0-9a-f]:/i.test(h) ||
+    /^::ffff:/i.test(h)
+  ) {
+    return true;
   }
   return false;
 }
@@ -131,15 +140,87 @@ function buildChatCompletionsUrl(rawBase) {
 
 function validateByokTargetUrl(rawTarget) {
   const trimmed = String(rawTarget || "").trim();
-  if (!trimmed) return null;
+  if (!trimmed || /\s/.test(trimmed)) return null;
   try {
     const parsed = new URL(trimmed);
     if (parsed.protocol !== "https:") return null;
     if (isBlockedHost(parsed.hostname)) return null;
+    const host = parsed.hostname.replace(/^\[|\]$/g, "");
+    if (!host.includes(".") && !host.includes(":")) return null;
+    if (host.startsWith(".") || host.endsWith(".")) return null;
     return parsed.href;
   } catch {
     return null;
   }
+}
+
+function describeUpstreamFetchError(err) {
+  const cause = err && typeof err === "object" ? err.cause : null;
+  const nestedFirst =
+    cause && Array.isArray(cause.errors) && cause.errors.length
+      ? cause.errors[0]
+      : null;
+  const code = String(
+    (cause && cause.code) ||
+      (nestedFirst && nestedFirst.code) ||
+      (err && err.code) ||
+      ""
+  ).trim();
+  const causeMsg = String(
+    (cause && cause.message) ||
+      (nestedFirst && nestedFirst.message) ||
+      ""
+  ).trim();
+  const topMsg = String(
+    err instanceof Error ? err.message : err || ""
+  ).trim();
+
+  let detail = "";
+  if (
+    code === "ENOTFOUND" ||
+    code === "EAI_AGAIN" ||
+    code === "ENODATA" ||
+    code === "EBADNAME"
+  ) {
+    detail = `DNS lookup failed (${code})`;
+  } else if (code === "ECONNREFUSED") {
+    detail = "connection refused (ECONNREFUSED)";
+  } else if (
+    code === "ECONNRESET" ||
+    code === "EPIPE" ||
+    code === "UND_ERR_SOCKET"
+  ) {
+    detail = `connection reset (${code})`;
+  } else if (
+    code === "ETIMEDOUT" ||
+    code === "EHOSTUNREACH" ||
+    code === "ENETUNREACH" ||
+    code === "UND_ERR_CONNECT_TIMEOUT" ||
+    code === "UND_ERR_HEADERS_TIMEOUT"
+  ) {
+    detail = `connection unreachable or timed out (${code})`;
+  } else if (
+    code.startsWith("ERR_TLS_") ||
+    code.startsWith("ERR_SSL_") ||
+    code.includes("CERT") ||
+    code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" ||
+    code === "EPROTO"
+  ) {
+    detail = causeMsg
+      ? `TLS handshake failed (${code}: ${causeMsg})`
+      : `TLS handshake failed (${code})`;
+  } else if (code) {
+    detail =
+      causeMsg && !causeMsg.includes(code)
+        ? `${code}: ${causeMsg}`
+        : causeMsg || code;
+  } else if (causeMsg && causeMsg.toLowerCase() !== "fetch failed") {
+    detail = causeMsg;
+  } else {
+    detail = topMsg || "network connection failed";
+  }
+
+  return detail.replace(/\s+/g, " ").slice(0, 200);
 }
 
 async function parseJsonBody(req) {
@@ -191,6 +272,7 @@ export default async function handler(req, res) {
     "Content-Type, Authorization, x-target-url, x-use-demo"
   );
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Expose-Headers", "x-upstream-content-type");
   res.setHeader("Cache-Control", "no-store");
 
   if (req.method === "OPTIONS") {
@@ -286,12 +368,31 @@ export default async function handler(req, res) {
     const validTarget = validateByokTargetUrl(req.headers["x-target-url"]);
     if (!validTarget) {
       sendJson(res, 400, {
-        error: { message: "Missing or non-HTTPS x-target-url header." },
+        error: {
+          message:
+            "Invalid Base URL: must be a public HTTPS OpenAI-compatible endpoint.",
+          code: "invalid_base_url",
+          field: "baseUrl",
+        },
       });
       return;
     }
     targetUrl = validTarget;
     authHeader = String(req.headers["authorization"] || "").trim();
+    if (
+      authHeader &&
+      (/[\0\r\n]/.test(authHeader) || /[^\x20-\x7e\t]/.test(authHeader))
+    ) {
+      sendJson(res, 401, {
+        error: {
+          message:
+            "Invalid API key: contains illegal non-ASCII or control characters.",
+          code: "invalid_api_key",
+          field: "apiKey",
+        },
+      });
+      return;
+    }
   }
 
   const payload = JSON.stringify(outBody);
@@ -312,19 +413,32 @@ export default async function handler(req, res) {
     });
 
     const text = await upstream.text();
+    const rawContentType =
+      upstream.headers && typeof upstream.headers.get === "function"
+        ? upstream.headers.get("content-type")
+        : "";
+    const sniffedHtml =
+      !rawContentType && /^\s*<(?:!doctype\s+html|html)\b/i.test(text);
     const contentType =
-      upstream.headers.get("content-type") || "application/json; charset=utf-8";
+      rawContentType ||
+      (sniffedHtml
+        ? "text/html; charset=utf-8"
+        : "application/json; charset=utf-8");
 
     res.statusCode = upstream.status;
     if (typeof res.status === "function") res.status(upstream.status);
     res.setHeader("Content-Type", contentType);
+    res.setHeader("x-upstream-content-type", contentType);
     if (typeof res.send === "function") {
       res.send(text);
     } else {
       res.end(text);
     }
   } catch (err) {
-    if (controller.signal.aborted || (err && err.name === "AbortError")) {
+    if (
+      controller.signal.aborted ||
+      (err && (err.name === "AbortError" || err.name === "TimeoutError"))
+    ) {
       sendJson(res, 504, {
         error: {
           message:
@@ -334,14 +448,25 @@ export default async function handler(req, res) {
       });
       return;
     }
-    const rawMsg = err instanceof Error ? err.message : String(err);
-    const safeDetail = useDemo
-      ? "Upstream connection failed"
-      : rawMsg.slice(0, 200);
+    if (useDemo) {
+      sendJson(res, 502, {
+        error: {
+          message: "Relay upstream request failed: Upstream connection failed",
+          code: "relay_failed",
+        },
+      });
+      return;
+    }
+    let host = "upstream";
+    try {
+      host = new URL(targetUrl).host || "upstream";
+    } catch {}
+    const safeDetail = describeUpstreamFetchError(err);
     sendJson(res, 502, {
       error: {
-        message: `Relay upstream request failed: ${safeDetail}`,
-        code: "relay_failed",
+        message: "Unreachable Base URL (" + host + "): " + safeDetail,
+        code: "unreachable_base_url",
+        field: "baseUrl",
       },
     });
   } finally {
