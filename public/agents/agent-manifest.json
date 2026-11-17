@@ -1,0 +1,34 @@
+{
+  "manifest_version": "0.2",
+  "site": {
+    "name": "AURA Agentic Web",
+    "description": "AURA's portable multi-agent brain published as an open agentic network: a plan/research/build/verify/critique loop any conforming runtime can load and run in the browser.",
+    "publisher": "AURA / Weni",
+    "homepage": "https://aura-agentic-web.vercel.app"
+  },
+  "inference": {
+    "default_router": {
+      "type": "openai-compatible",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4o-mini",
+      "note": "Site-provided default is a placeholder; visitors are expected to use the BYOK panel to supply their own OpenAI-compatible router + key. No publisher credential ships in this manifest."
+    },
+    "byok_supported": true
+  },
+  "networks": [
+    {
+      "name": "aura-core",
+      "description": "AURA's core orchestration network: an orchestrator front agent that delegates to researcher, builder, verifier, and critic agents in a plan-work-verify-repair loop.",
+      "front_agent": "orchestrator",
+      "hocon": "./aura-core.json",
+      "tags": ["orchestration", "research", "build", "verify", "critique"]
+    }
+  ],
+  "peer_links": {
+    "note": "Named references to other published agent-network URLs can be added here. The runtime also accepts a direct peer URL whose final path component is the network name."
+  },
+  "peer_policy": {
+    "allow_origins": ["*"],
+    "note": "This demo site permits loading peer agent networks from any origin, subject to per-contact user consent enforced by the runtime and browser CORS."
+  }
+}

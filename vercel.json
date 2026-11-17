@@ -1,0 +1,28 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
+  "cleanUrls": true,
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/agents/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "*" },
+        { "key": "Content-Type", "value": "application/json; charset=utf-8" }
+      ]
+    },
+    {
+      "source": "/runtime.js",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Content-Type", "value": "text/javascript; charset=utf-8" }
+      ]
+    }
+  ]
+}

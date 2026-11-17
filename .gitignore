@@ -1,0 +1,9 @@
+.vercel
+.vercel/
+.env*
+node_modules/
+_yt_snapshot.txt
+generated_video.mp4
+*.log
+.DS_Store
+Thumbs.db

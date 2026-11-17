@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "name": "aura-core",
+    "description": "AURA's core orchestration network. A front orchestrator agent decomposes a request and delegates to specialist agents (researcher, builder, verifier, critic) in a plan-work-verify-repair loop, then returns a single synthesized answer.",
+    "front_agent": "orchestrator"
+  },
+  "tools": [
+    {
+      "name": "orchestrator",
+      "function": {
+        "description": "Front entry point for the AURA network. Decomposes the user's request, delegates to the specialist agents, runs a plan-work-verify-repair loop, and returns one synthesized result.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "string",
+              "description": "The user's task or question for the AURA agent network."
+            }
+          },
+          "required": ["request"]
+        }
+      },
+      "instructions": "You are the ORCHESTRATOR of the AURA agent network. Given a request: (1) plan the smallest set of steps, (2) call the researcher for grounding when facts are needed, (3) call the builder to produce the artifact or answer, (4) call the verifier to check it against the request, (5) if the verifier finds substantive gaps, loop back to the builder once with the gaps, then (6) call the critic for a final adversarial pass. Each specialist runs in an isolated context and sees ONLY the arguments you pass to it, so pass complete artifacts and specifications rather than referencing prior turns. Synthesize everything into one clear, direct answer. Report honestly what was and was not verified. Never claim success without the verifier's confirmation.",
+      "tools": ["researcher", "builder", "verifier", "critic"]
+    },
+    {
+      "name": "researcher",
+      "function": {
+        "description": "Gathers and grounds facts needed to answer the request. Returns concise, sourced findings.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string", "description": "What to research or ground." }
+          },
+          "required": ["query"]
+        }
+      },
+      "instructions": "You are the RESEARCHER. Return concise, grounded findings for the query. State what is known with confidence and flag what is uncertain. Prefer specific facts over generalities. Do not invent sources.",
+      "tools": []
+    },
+    {
+      "name": "builder",
+      "function": {
+        "description": "Produces the concrete artifact or answer from the plan and research, on the orchestrator's instruction.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "spec": { "type": "string", "description": "What to build or answer, including any research context and prior-pass gaps." }
+          },
+          "required": ["spec"]
+        }
+      },
+      "instructions": "You are the BUILDER. Produce the concrete deliverable the spec asks for: code, a plan, a written answer. Be complete and precise. If the spec includes gaps from a prior verification pass, address each one explicitly.",
+      "tools": []
+    },
+    {
+      "name": "verifier",
+      "function": {
+        "description": "Checks the builder's output against the original request and lists any gaps.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "artifact": { "type": "string", "description": "The builder's output to check." },
+            "against": { "type": "string", "description": "The original request to verify against." }
+          },
+          "required": ["artifact", "against"]
+        }
+      },
+      "instructions": "You are the VERIFIER. Check the artifact against the original request. Return a short verdict (PASS or GAPS) and, if GAPS, an itemized list of exactly what is missing or wrong. Be strict and specific. Do not rubber-stamp.",
+      "tools": []
+    },
+    {
+      "name": "critic",
+      "function": {
+        "description": "Final adversarial pass: finds weaknesses, edge cases, and failure modes in the verified result.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "result": { "type": "string", "description": "The verified result to critique." }
+          },
+          "required": ["result"]
+        }
+      },
+      "instructions": "You are the CRITIC. Give a final adversarial read of the result: name the strongest weakness, one realistic failure mode, and one concrete improvement. Keep it short and honest. If the result is genuinely solid, say so plainly.",
+      "tools": []
+    }
+  ],
+  "private_context_rules": {
+    "deny_by_default": true,
+    "allowed_downstream_fields": [],
+    "note": "No private-context (sly_data) fields cross agent-site boundaries. Deny-by-default per spec section 2.1."
+  },
+  "execution_limits": {
+    "max_composition_depth": 4,
+    "max_agent_invocations": 40,
+    "max_remote_calls": 40,
+    "max_elapsed_seconds": 300,
+    "note": "Finite bounds per spec section 3.1. Repeated invocation of the same agent is not itself a cycle. The orchestrator does one model round-trip per delegation, so a full plan-work-verify-repair pass over five agents needs well above a dozen remote calls; bounds are set to comfortably fit one loop plus a repair iteration while staying finite."
+  },
+  "model_hints": {
+    "note": "Model names and generation settings are hints only. The caller's active router and model policy (including a visitor BYOK selection) take precedence per spec section 2.1.",
+    "suggested_model": "any OpenAI-compatible chat model with tool-calling"
+  }
+}

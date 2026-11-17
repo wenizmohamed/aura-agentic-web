@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AURA Agentic Web</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0a09; --bg2:#111010; --surface:#15140f; --surface2:#1b1914; --raise:#201d17;
+    --paper:#ECE9E3; --muted:#817B71; --muted2:#B0AAA0; --faint:#5a544b;
+    --coral:#EA7A5E; --coral2:#f0906f; --green:#54CF85; --amber:#E2AD55;
+    --line:rgba(236,233,227,.09); --line2:rgba(236,233,227,.055);
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    --serif:"Fraunces",Georgia,serif; --sans:"Inter",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--bg);color:var(--paper);font-family:var(--sans);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+  a{color:var(--muted2);text-decoration:none} a:hover{color:var(--coral)}
+  .mono{font-family:var(--mono)}
+  .lab{font-family:var(--mono);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint)}
+
+  /* top bar */
+  .topbar{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .mark{display:flex;align-items:center;gap:11px}
+  .mark .sq{width:30px;height:30px;border:1px solid var(--coral);border-radius:7px;display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--coral);font-size:17px}
+  .mark b{font-family:var(--serif);font-weight:500;font-size:16px;letter-spacing:-.2px}
+  .bc{margin-left:6px;color:var(--faint);font-family:var(--mono);font-size:11px}
+  .bc span{color:var(--muted)}
+  .topbar .right{margin-left:auto;display:flex;gap:7px;align-items:center}
+  .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.5px;color:var(--muted);border:1px solid var(--line);padding:5px 10px;border-radius:5px}
+  .dot{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.5px;color:var(--green);border:1px solid rgba(84,207,133,.25);padding:5px 10px;border-radius:5px}
+  .dot::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);animation:blink 2s infinite}
+  @keyframes blink{50%{opacity:.4}}
+  @keyframes pulseRun{0%,100%{box-shadow:0 0 12px rgba(84,207,133,.14)}50%{box-shadow:0 0 22px rgba(84,207,133,.32)}}
+
+  /* hero band */
+  .band{padding:40px 22px 26px;border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+  .band::after{content:"";position:absolute;right:-80px;top:-120px;width:520px;height:520px;background:radial-gradient(circle,rgba(234,122,94,.1),transparent 62%);pointer-events:none}
+  .band .idx{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:2px;margin-bottom:14px}
+  .band h1{font-family:var(--serif);font-weight:400;font-size:52px;line-height:1.02;letter-spacing:-1.4px;margin:0;max-width:880px}
+  .band h1 em{font-style:italic;color:var(--coral)}
+  .band .lede{margin:18px 0 0;max-width:600px;color:var(--muted2);font-size:15.5px;line-height:1.62}
+  .band .lede b{color:var(--paper);font-weight:600}
+  .metarow{display:flex;gap:40px;margin-top:26px;flex-wrap:wrap}
+  .metarow .m .v{font-family:var(--mono);font-size:22px;color:var(--paper);font-weight:500}
+  .metarow .m .k{font-family:var(--mono);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--faint);margin-top:3px}
+
+  /* grid */
+  .grid{display:grid;grid-template-columns:260px 1fr 330px;gap:0;min-height:560px}
+  @media(max-width:1080px){.grid{grid-template-columns:1fr}}
+  .col{border-right:1px solid var(--line);padding:18px}
+  .col:last-child{border-right:0}
+  .sechead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .sechead .n{font-family:var(--mono);font-size:10px;color:var(--faint)}
+
+  /* roster */
+  .agent{border:1px solid var(--line2);border-radius:9px;padding:11px 12px;margin-bottom:9px;background:var(--surface);transition:border .2s,background .2s,box-shadow .2s}
+  .agent.front{border-color:rgba(234,122,94,.4);background:linear-gradient(180deg,rgba(234,122,94,.06),var(--surface))}
+  .agent.done{border-color:rgba(84,207,133,.36);background:linear-gradient(180deg,rgba(84,207,133,.04),var(--surface))}
+  .agent.lit,.agent.running{border-color:var(--green);background:linear-gradient(180deg,rgba(84,207,133,.11),var(--surface));animation:pulseRun 1.4s ease-in-out infinite}
+  .agent .nm{font-family:var(--serif);font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px}
+  .agent .nm .led{width:7px;height:7px;border-radius:50%;background:var(--faint);transition:all .2s}
+  .agent.front .nm .led{background:var(--coral);box-shadow:0 0 7px var(--coral)}
+  .agent.done .nm .led{background:var(--green);box-shadow:0 0 5px rgba(84,207,133,.5)}
+  .agent.lit .nm .led,.agent.running .nm .led{background:var(--green);box-shadow:0 0 10px var(--green);animation:blink .9s infinite}
+  .agent .rl{font-family:var(--mono);font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-top:5px}
+  .agent .ds{font-size:11.5px;color:var(--muted2);margin-top:7px;line-height:1.45}
+
+  /* chat */
+  .chatcol{display:flex;flex-direction:column;padding:0}
+  .pipeline{display:flex;align-items:stretch;gap:0;padding:14px 18px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .stage{flex:1;min-width:78px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);padding:10px 11px;transition:all .25s;position:relative}
+  .stage .sn{font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:1px}
+  .stage .st2{display:block;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.8px;color:var(--muted2);margin-top:3px}
+  .stage .sa{display:block;font-family:var(--serif);font-size:12px;color:var(--muted);margin-top:4px}
+  .stage.done{border-color:rgba(84,207,133,.38);background:linear-gradient(180deg,rgba(84,207,133,.05),var(--surface))}
+  .stage.done .st2{color:rgba(84,207,133,.88)}
+  .stage.done .sn::after{content:" \2713";color:var(--green)}
+  .stage.lit,.stage.running{border-color:var(--green);background:linear-gradient(180deg,rgba(84,207,133,.14),var(--surface));animation:pulseRun 1.4s ease-in-out infinite}
+  .stage.lit .st2,.stage.running .st2{color:var(--green)}
+  .stage.lit .sa,.stage.running .sa{color:var(--paper)}
+  .flow{display:flex;align-items:center;color:var(--faint);padding:0 7px;font-size:13px}
+  @media(max-width:1080px){.flow{display:none}.pipeline{gap:7px}}
+  .chat{flex:1;overflow:auto;padding:18px 20px;max-height:430px;min-height:150px}
+  .chat::-webkit-scrollbar,.trace::-webkit-scrollbar{width:7px}.chat::-webkit-scrollbar-thumb,.trace::-webkit-scrollbar-thumb{background:var(--line);border-radius:7px}
+  .m2{margin-bottom:15px;max-width:94%}
+  .m2 .who{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
+  .m2.u{margin-left:auto}.m2.u .bx{background:var(--surface2);border:1px solid var(--line2);border-radius:11px 11px 3px 11px;padding:11px 14px}
+  .m2.a .bx{background:var(--surface);border:1px solid var(--line);border-left:2px solid var(--coral);border-radius:3px 11px 11px 3px;padding:12px 15px;white-space:pre-wrap;line-height:1.56}
+  .m2.a .bx.thinking{font-family:var(--mono);font-size:12px;color:var(--muted2);border-left-color:var(--amber)}
+  .composer{display:flex;gap:9px;padding:13px 16px;border-top:1px solid var(--line)}
+  .composer input{flex:1;background:var(--bg2);border:1px solid var(--line);color:var(--paper);border-radius:9px;padding:13px 15px;font-size:14px;outline:none;font-family:var(--sans);transition:border .15s,box-shadow .15s}
+  .composer input:focus{border-color:var(--coral)}
+  .btn{font-family:var(--sans);font-weight:600;font-size:13.5px;border:0;border-radius:9px;padding:0 20px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:7px;justify-content:center}
+  .btn.p{background:var(--coral);color:#1a0f0b} .btn.p:hover{background:var(--coral2)} .btn.p:disabled{opacity:.45;cursor:default}
+  .btn.g{background:transparent;color:var(--muted2);border:1px solid var(--line)} .btn.g:hover{border-color:var(--coral);color:var(--paper)}
+  .suggest{display:flex;gap:7px;flex-wrap:wrap;padding:0 16px 12px}
+  .chip{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line2);border-radius:6px;padding:6px 10px;cursor:pointer;background:var(--bg2);transition:border .15s,color .15s}
+  .chip:hover{border-color:var(--coral);color:var(--paper)}
+
+  /* right rail */
+  .block{margin-bottom:20px}
+  .block label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.8px;color:var(--muted);margin:9px 0 4px;text-transform:uppercase}
+  .block input{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--paper);border-radius:7px;padding:9px 11px;font-size:12px;outline:none;font-family:var(--mono);transition:border .15s,box-shadow .15s}
+  .block input:focus{border-color:var(--coral)}
+  .block input.attn,.composer input.attn{border-color:var(--coral);box-shadow:0 0 0 2px rgba(234,122,94,.22)}
+  .block .row{display:flex;gap:7px;margin-top:11px}.block .row .btn{flex:1;padding:9px 0;font-size:12.5px}
+  .block .row .btn.sm{flex:0 0 74px}
+  .st{font-family:var(--mono);font-size:11px;margin-top:9px;line-height:1.45}.st.ok{color:var(--green)}.st.err{color:var(--coral)}
+  .psub{font-size:11px;color:var(--faint);margin:2px 0 10px;line-height:1.5}
+  .trace{max-height:240px;overflow:auto;font-family:var(--mono);font-size:11px;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);padding:10px}
+  .ev{padding:6px 8px;margin-bottom:5px;border-radius:6px;border-left:2px solid var(--line);background:rgba(0,0,0,.25);animation:si .2s}
+  @keyframes si{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:none}}
+  .ev.agent_start,.ev.agent_delegate{border-left-color:var(--amber)}.ev.agent_done{border-left-color:var(--green)}
+  .ev.run_start,.ev.run_done{border-left-color:var(--coral)}.ev.run_error{border-left-color:var(--coral);background:rgba(234,122,94,.08)}
+  .ev.network_loaded,.ev.peer_loaded{border-left-color:#6ab0ff}
+  .ev .ty{color:var(--faint)}.ev .k{color:var(--coral);font-weight:700}.ev .d{color:var(--muted)}
+  footer{border-top:1px solid var(--line);padding:18px 22px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-family:var(--mono);font-size:11px;color:var(--faint)}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="mark"><div class="sq">A</div><b>AURA</b></div>
+    <span class="bc">agentic-web / <span id="netname">aura-core</span></span>
+    <div class="right">
+      <span class="tag">Neuro SAN &middot; MVP 0.2</span>
+      <span class="tag">browser runtime</span>
+      <span class="dot" id="netpill">network live</span>
+    </div>
+  </div>
+
+  <div class="band">
+    <div class="idx">AGENT NETWORK / PORTABLE / 01</div>
+    <h1>My whole brain, running <em>in your browser.</em></h1>
+    <p class="lede">AURA is a portable multi-agent network published as open data. An <b>orchestrator</b> delegates to a <b>researcher</b>, <b>builder</b>, <b>verifier</b>, and <b>critic</b> that execute on this page from a public Neuro SAN definition, no agent server. Bring your own OpenAI-compatible key, or load another agentic site and run its agents with this same runtime.</p>
+    <div class="metarow">
+      <div class="m"><div class="v">5</div><div class="k">agents</div></div>
+      <div class="m"><div class="v">0</div><div class="k">servers</div></div>
+      <div class="m"><div class="v">100%</div><div class="k">open source</div></div>
+      <div class="m"><div class="v">BYOK</div><div class="k">any oai endpoint</div></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- left: roster -->
+    <div class="col">
+      <div class="sechead"><span class="lab">Agent roster</span><span class="n" id="rcount">5 nodes</span></div>
+      <div id="roster"></div>
+    </div>
+
+    <!-- center: console -->
+    <div class="col chatcol">
+      <div class="sechead" style="padding:16px 18px 0"><span class="lab">Console</span><span class="n">plan &middot; work &middot; verify &middot; repair</span></div>
+      <div class="pipeline" id="pipeline">
+        <div class="stage" data-ag="orchestrator"><span class="sn">01</span><span class="st2">PLAN</span><span class="sa">orchestrator</span></div>
+        <div class="flow">&rarr;</div>
+        <div class="stage" data-ag="researcher"><span class="sn">02</span><span class="st2">GROUND</span><span class="sa">researcher</span></div>
+        <div class="flow">&rarr;</div>
+        <div class="stage" data-ag="builder"><span class="sn">03</span><span class="st2">BUILD</span><span class="sa">builder</span></div>
+        <div class="flow">&rarr;</div>
+        <div class="stage" data-ag="verifier"><span class="sn">04</span><span class="st2">VERIFY</span><span class="sa">verifier</span></div>
+        <div class="flow">&rarr;</div>
+        <div class="stage" data-ag="critic"><span class="sn">05</span><span class="st2">STRESS</span><span class="sa">critic</span></div>
+      </div>
+      <div class="chat" id="chat">
+        <div class="m2 a"><div class="who">AURA</div><div class="bx">I am the AURA agent network. Activate an OpenAI-compatible key in the router panel, then ask me to build, research, verify, or critique, and watch the pipeline above fire stage by stage as the orchestrator delegates. You can also load a peer agentic site and run its agents here.</div></div>
+      </div>
+      <div class="suggest" id="suggest"></div>
+      <div class="composer"><input id="q" placeholder="Ask the AURA network..." autocomplete="off" /><button class="btn p" id="send" type="button">Run</button></div>
+    </div>
+
+    <!-- right: router + trace -->
+    <div class="col">
+      <div class="block">
+        <div class="sechead"><span class="lab">Inference router</span></div>
+        <p class="psub">BYOK. The browser calls your router directly; if it refuses browser CORS, the call passes through a stateless same-origin relay that stores and logs nothing. Key stays in sessionStorage for this tab only.</p>
+        <label for="base">Base URL (OpenAI-compatible)</label>
+        <input id="base" placeholder="https://api.openai.com/v1" autocomplete="url" />
+        <label for="key">API key</label>
+        <input id="key" type="password" placeholder="sk-..." autocomplete="off" />
+        <label for="model">Model</label>
+        <input id="model" placeholder="gpt-4o-mini" autocomplete="off" />
+        <div class="row"><button class="btn p" id="save" type="button">Activate</button><button class="btn g sm" id="clearrouter" type="button">Clear</button></div>
+        <div class="st" id="rstatus"></div>
+      </div>
+      <div class="block">
+        <div class="sechead"><span class="lab">Peer agent site</span></div>
+        <p class="psub">Final path segment is the network name. Runtime asks consent before contacting any origin.</p>
+        <input id="peer" placeholder="https://peer.example/agents/transit" />
+        <div class="row"><button class="btn p" id="loadpeer" type="button">Load peer</button><button class="btn g" id="loadself" type="button">Reload</button></div>
+        <div class="st" id="pstatus"></div>
+      </div>
+      <div class="block">
+        <div class="sechead"><span class="lab">Live trace</span></div>
+        <div class="trace" id="trace"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>OPEN SOURCE / MIT</span>
+    <a href="./agents/agent-manifest.json" target="_blank">agent-manifest.json</a>
+    <a href="./agents/aura-core.json" target="_blank">network.json</a>
+    <a href="./runtime.js" target="_blank">runtime.js</a>
+    <a href="https://github.com/cognizant-ai-labs/agentic-web/blob/main/docs/worldwide_agentic_web_mvp_spec.md" target="_blank">conforms / MVP Profile 0.2</a>
+  </footer>
+
+<script type="module">
+import { AuraRuntime } from "./runtime.js";
+const $ = (id) => document.getElementById(id);
+const chat = $("chat"), trace = $("trace"), roster = $("roster");
+
+const STORAGE_BASE = "aura_byok_base_url";
+const STORAGE_MODEL = "aura_byok_model";
+const STORAGE_KEY = "aura_byok_api_key";
+
+const DEFAULT_AGENTS = [
+  { name: "orchestrator", role: "front agent", front: true, ds: "Plans the task, delegates across the network, runs the plan-work-verify-repair loop, synthesizes one answer." },
+  { name: "researcher", role: "ground", ds: "Gathers and grounds the facts the task needs. Flags what is uncertain." },
+  { name: "builder", role: "produce", ds: "Produces the concrete artifact or answer from the plan and research." },
+  { name: "verifier", role: "check", ds: "Checks the build against the request. Returns PASS or an itemized GAPS list." },
+  { name: "critic", role: "stress", ds: "Final adversarial pass: strongest weakness, a failure mode, one improvement." }
+];
+const DEFAULT_BY_NAME = new Map(DEFAULT_AGENTS.map((a) => [a.name, a]));
+
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderRoster(list) {
+  roster.innerHTML = "";
+  list.forEach((a) => {
+    const d = document.createElement("div");
+    d.className = "agent" + (a.front ? " front" : "");
+    d.id = "ag-" + a.name;
+    d.innerHTML =
+      '<div class="nm"><span class="led"></span>' + esc(a.name) + '</div>' +
+      '<div class="rl">' + esc(a.role) + '</div>' +
+      '<div class="ds">' + esc(a.ds) + '</div>';
+    roster.appendChild(d);
+  });
+}
+renderRoster(DEFAULT_AGENTS);
+
+// Live execution state for real-time pipeline & progress bubble
+const activeStack = [];
+const completedAgents = new Set();
+let completedSteps = 0;
+let runStartedAt = 0;
+let activeBubble = null;
+let progressTimer = null;
+let isRunning = false;
+let demoInfo = { available: false, model: null };
+
+function resetPipelineStates() {
+  document.querySelectorAll(".agent, .stage").forEach((el) => {
+    el.classList.remove("lit", "running", "done");
+  });
+}
+
+function syncAgentStates() {
+  const runningNames = new Set(activeStack.map((item) => item.agent));
+  document.querySelectorAll(".agent").forEach((el) => {
+    const nm = el.id.replace(/^ag-/, "");
+    if (runningNames.has(nm)) {
+      el.classList.add("lit", "running");
+      el.classList.remove("done");
+    } else if (completedAgents.has(nm)) {
+      el.classList.remove("lit", "running");
+      el.classList.add("done");
+    } else {
+      el.classList.remove("lit", "running", "done");
+    }
+  });
+  document.querySelectorAll(".stage[data-ag]").forEach((stage) => {
+    const nm = stage.getAttribute("data-ag");
+    if (runningNames.has(nm)) {
+      stage.classList.add("lit", "running");
+      stage.classList.remove("done");
+    } else if (completedAgents.has(nm)) {
+      stage.classList.remove("lit", "running");
+      stage.classList.add("done");
+    } else {
+      stage.classList.remove("lit", "running", "done");
+    }
+  });
+}
+
+function updateProgressBubble() {
+  if (!activeBubble) return;
+  const elapsedSec = runStartedAt ? Math.max(0, Math.floor((Date.now() - runStartedAt) / 1000)) : 0;
+  if (activeStack.length > 0) {
+    const chain = activeStack.map((x) => x.agent).join(" \u2192 ");
+    const top = activeStack[activeStack.length - 1];
+    const stepNote = completedSteps > 0 && activeStack.length === 1
+      ? ", " + completedSteps + (completedSteps === 1 ? " delegation done" : " delegations done")
+      : "";
+    activeBubble.textContent = "Running " + chain + " (depth " + top.depth + stepNote + ")... " + elapsedSec + "s";
+  } else {
+    activeBubble.textContent = "Starting AURA network... " + elapsedSec + "s";
+  }
+}
+
+function addMsg(role, text, thinking = false) {
+  const d = document.createElement("div");
+  d.className = "m2 " + (role === "user" ? "u" : "a");
+  d.innerHTML = '<div class="who">' + (role === "user" ? "You" : "AURA") + '</div><div class="bx"></div>';
+  const bx = d.querySelector(".bx");
+  if (thinking) bx.classList.add("thinking");
+  bx.textContent = text;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+  return bx;
+}
+
+function addEv(ev) {
+  if (ev.type === "network_loaded" && Array.isArray(ev.agents) && rt) {
+    $("netname").textContent = ev.name || "network";
+    const built = ev.agents.map((nm) => {
+      if (ev.name === "aura-core" && DEFAULT_BY_NAME.has(nm)) return DEFAULT_BY_NAME.get(nm);
+      const def = rt.agents.get(nm) || {};
+      const isFront = nm === ev.front;
+      return {
+        name: nm,
+        role: isFront ? "front agent" : "specialist",
+        front: isFront,
+        ds: (def.function && def.function.description) || def.instructions || nm
+      };
+    });
+    renderRoster(built);
+  } else if (ev.type === "run_start") {
+    activeStack.length = 0;
+    completedAgents.clear();
+    completedSteps = 0;
+    runStartedAt = Date.now();
+    resetPipelineStates();
+    updateProgressBubble();
+  } else if (ev.type === "agent_start") {
+    activeStack.push({ agent: ev.agent, depth: ev.depth || 0 });
+    syncAgentStates();
+    updateProgressBubble();
+  } else if (ev.type === "agent_delegate") {
+    updateProgressBubble();
+  } else if (ev.type === "agent_done") {
+    for (let i = activeStack.length - 1; i >= 0; i--) {
+      if (activeStack[i].agent === ev.agent) {
+        activeStack.splice(i, 1);
+        break;
+      }
+    }
+    completedAgents.add(ev.agent);
+    if ((ev.depth || 0) > 0) completedSteps++;
+    syncAgentStates();
+    updateProgressBubble();
+  } else if (ev.type === "run_done") {
+    activeStack.length = 0;
+    syncAgentStates();
+  } else if (ev.type === "run_error") {
+    activeStack.length = 0;
+    document.querySelectorAll(".agent, .stage").forEach((el) => {
+      el.classList.remove("lit", "running");
+    });
+  }
+
+  const d = document.createElement("div");
+  d.className = "ev " + esc(ev.type);
+  let detail = "";
+  if (ev.type === "agent_delegate") {
+    detail = '<span class="k">' + esc(ev.from) + ' &rarr; ' + esc(ev.to) + '</span> <span class="d">d' + esc(ev.depth) + '</span>';
+  } else if (ev.agent) {
+    detail = '<span class="k">' + esc(ev.agent) + '</span> <span class="d">d' + esc(ev.depth) + '</span>';
+  } else if (ev.type === "run_done") {
+    const secs = typeof ev.elapsedMs === "number" ? (ev.elapsedMs / 1000).toFixed(1) + "s" : "";
+    detail = '<span class="d">' + esc((ev.invocations || 0) + " agents" + (secs ? " / " + secs : "")) + '</span>';
+  } else if (ev.type === "run_error") {
+    detail = '<span class="d">' + esc(String(ev.error || "").slice(0, 64)) + '</span>';
+  } else if (ev.network) {
+    detail = '<span class="k">' + esc(ev.network) + '</span>';
+  } else if (ev.name) {
+    detail = '<span class="k">' + esc(ev.name) + '</span> <span class="d">front ' + esc(ev.front || "") + '</span>';
+  } else if (ev.request) {
+    detail = '<span class="d">' + esc(String(ev.request).slice(0, 46)) + '</span>';
+  }
+  d.innerHTML = '<span class="ty">' + esc(ev.type) + '</span> ' + detail;
+  trace.appendChild(d);
+  trace.scrollTop = trace.scrollHeight;
+}
+
+let rt = null;
+rt = new AuraRuntime({ onEvent: addEv });
+
+async function loadAura() {
+  try {
+    const r = await rt.loadNetworkFromUrl("./agents/aura-core.json");
+    $("netpill").textContent = "network live";
+    $("rcount").textContent = r.agents.length + " nodes";
+    $("pstatus").className = "st ok";
+    $("pstatus").textContent = "AURA loaded (" + r.agents.length + " agents).";
+  } catch (e) {
+    $("netpill").textContent = "load failed";
+    $("pstatus").className = "st err";
+    $("pstatus").textContent = "Load failed: " + e.message;
+  }
+}
+
+function clearAttn() {
+  $("base").classList.remove("attn");
+  $("key").classList.remove("attn");
+  $("q").classList.remove("attn");
+}
+["base", "key", "model", "q"].forEach((id) => {
+  $(id).addEventListener("input", () => $(id).classList.remove("attn"));
+});
+
+function saveStorage(base, model, key) {
+  try {
+    localStorage.setItem(STORAGE_BASE, base);
+    localStorage.setItem(STORAGE_MODEL, model);
+  } catch {}
+  try {
+    sessionStorage.setItem(STORAGE_KEY, key);
+  } catch {}
+}
+
+function clearStorage() {
+  try {
+    localStorage.removeItem(STORAGE_BASE);
+    localStorage.removeItem(STORAGE_MODEL);
+  } catch {}
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {}
+}
+
+async function initRouter() {
+  let savedBase = "", savedModel = "", savedKey = "";
+  try {
+    savedBase = (localStorage.getItem(STORAGE_BASE) || "").trim();
+    savedModel = (localStorage.getItem(STORAGE_MODEL) || "").trim();
+  } catch {}
+  try {
+    savedKey = (sessionStorage.getItem(STORAGE_KEY) || "").trim();
+  } catch {}
+
+  if (savedBase) $("base").value = savedBase;
+  if (savedModel) $("model").value = savedModel;
+  if (savedKey) $("key").value = savedKey;
+
+  if (savedBase && savedKey) {
+    const activeModel = savedModel || "gpt-4o-mini";
+    rt.setRouter({ baseUrl: savedBase, apiKey: savedKey, model: activeModel });
+    $("rstatus").className = "st ok";
+    $("rstatus").textContent = "Router active - " + activeModel;
+  }
+
+  try {
+    const res = await fetch("/api/relay", { method: "GET", headers: { "Accept": "application/json" } });
+    if (res.ok) {
+      const info = await res.json();
+      demoInfo = {
+        available: Boolean(info && info.demoAvailable),
+        model: (info && info.demoModel) || null
+      };
+      if (!rt.hasActiveRouter() && demoInfo.available) {
+        rt.setRouter({ demo: true, model: demoInfo.model || "default" });
+        $("rstatus").className = "st ok";
+        $("rstatus").textContent = "Built-in live router ready (or enter BYOK)";
+      }
+    }
+  } catch {
+    // Same-origin /api/relay unavailable (e.g. static file host without functions); BYOK still works directly when CORS allows.
+  }
+}
+
+let auraReady = loadAura();
+const routerReady = initRouter();
+
+[
+  "Design a URL shortener, then verify it",
+  "Research and plan a 3-day launch",
+  "Write a Python retry decorator, critique it"
+].forEach((s) => {
+  const c = document.createElement("div");
+  c.className = "chip";
+  c.textContent = s;
+  c.onclick = () => {
+    if (isRunning) return;
+    $("q").value = s;
+    $("q").classList.remove("attn");
+    run();
+  };
+  $("suggest").appendChild(c);
+});
+
+function activateByok() {
+  const base = $("base").value.trim();
+  const key = $("key").value.trim();
+  const model = $("model").value.trim() || "gpt-4o-mini";
+  clearAttn();
+  if (!base || !key) {
+    $("rstatus").className = "st err";
+    $("rstatus").textContent = "Enter your OpenAI-compatible Base URL + API key and click Activate first.";
+    if (!base) $("base").classList.add("attn");
+    if (!key) $("key").classList.add("attn");
+    (!base ? $("base") : $("key")).focus();
+    return;
+  }
+  saveStorage(base, model, key);
+  rt.setRouter({ baseUrl: base, apiKey: key, model });
+  $("rstatus").className = "st ok";
+  $("rstatus").textContent = "Router active - " + model;
+}
+
+$("save").onclick = activateByok;
+["base", "key", "model"].forEach((id) => {
+  $(id).addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      activateByok();
+    }
+  });
+});
+
+$("clearrouter").onclick = () => {
+  clearStorage();
+  clearAttn();
+  $("base").value = "";
+  $("key").value = "";
+  $("model").value = "";
+  if (demoInfo.available) {
+    rt.setRouter({ demo: true, model: demoInfo.model || "default" });
+    $("rstatus").className = "st ok";
+    $("rstatus").textContent = "Built-in live router ready (or enter BYOK)";
+  } else {
+    rt.setRouter(null);
+    $("rstatus").className = "st";
+    $("rstatus").textContent = "Saved BYOK cleared.";
+  }
+};
+
+$("loadself").onclick = () => { auraReady = loadAura(); };
+$("loadpeer").onclick = async () => {
+  const url = $("peer").value.trim();
+  if (!url) {
+    $("peer").focus();
+    return;
+  }
+  try {
+    const r = await rt.loadPeerNetwork(url, async ({ origin, purpose }) =>
+      confirm(
+        "Allow AURA to contact " + origin + " to " + purpose + "?\n\n" +
+        "The peer's agents run in YOUR browser with YOUR router. Your key is never sent to the peer."
+      )
+    );
+    if (r) {
+      $("rcount").textContent = r.agents.length + " nodes";
+      $("pstatus").className = "st ok";
+      $("pstatus").textContent = "Peer loaded - " + r.front + " (" + r.agents.length + " agents).";
+    }
+  } catch (e) {
+    $("pstatus").className = "st err";
+    $("pstatus").textContent = "Peer load failed: " + e.message;
+  }
+};
+
+async function run() {
+  if (isRunning) return;
+  await Promise.allSettled([auraReady, routerReady]);
+
+  if (!rt.hasActiveRouter()) {
+    $("rstatus").className = "st err";
+    $("rstatus").textContent = "Enter your OpenAI-compatible Base URL + API key and click Activate first.";
+    const baseEmpty = !$("base").value.trim();
+    const keyEmpty = !$("key").value.trim();
+    if (baseEmpty) $("base").classList.add("attn");
+    if (keyEmpty) $("key").classList.add("attn");
+    const focusEl = baseEmpty ? $("base") : $("key");
+    focusEl.classList.add("attn");
+    focusEl.focus();
+    return;
+  }
+
+  const q = $("q").value.trim();
+  if (!q) {
+    $("q").classList.add("attn");
+    $("q").placeholder = "Enter a prompt or pick a suggestion chip above...";
+    $("q").focus();
+    return;
+  }
+
+  clearAttn();
+  $("q").value = "";
+  isRunning = true;
+  $("send").disabled = true;
+  $("send").textContent = "Running...";
+
+  addMsg("user", q);
+  runStartedAt = Date.now();
+  activeBubble = addMsg("aura", "Starting AURA network... 0s", true);
+  progressTimer = setInterval(updateProgressBubble, 1000);
+
+  try {
+    const ans = await rt.run(q);
+    activeBubble.classList.remove("thinking");
+    activeBubble.textContent = ans || "(empty)";
+  } catch (e) {
+    activeBubble.classList.remove("thinking");
+    activeBubble.textContent = "Error: " + (e && e.message ? e.message : String(e));
+  } finally {
+    clearInterval(progressTimer);
+    progressTimer = null;
+    const finalEl = activeBubble;
+    activeBubble = null;
+    isRunning = false;
+    $("send").disabled = false;
+    $("send").textContent = "Run";
+    if (finalEl) chat.scrollTop = chat.scrollHeight;
+    $("q").focus();
+  }
+}
+
+$("send").onclick = run;
+$("q").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    run();
+  }
+});
+</script>
+</body>
+</html>
