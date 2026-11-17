@@ -33,7 +33,7 @@ Published at [`/agents/agent-manifest.json`](./public/agents/agent-manifest.json
   - The browser attempts direct `fetch()` calls to the visitor's chosen BYOK endpoint first.
   - Because many LLM gateways omit browser CORS headers (or reject browser `Origin` headers at WAF), `AuraRuntime` automatically falls back to `POST /api/relay` (`x-target-url` + `Authorization`) and caches relay preference for that endpoint for the remainder of the session to avoid repeated preflight failures.
   - `/api/relay` is 100% stateless in BYOK mode: it validates HTTPS targets, blocks private/loopback SSRF ranges, enforces a 55s upstream `AbortController` timeout (`maxDuration = 60`), stores nothing, and logs no keys or prompts.
-  - **Optional Zero-Setup Demo Mode:** `GET /api/relay` reports `{ ok: true, demoAvailable, demoModel }`. When `DEMO_BASE_URL` and `DEMO_API_KEY` (plus optional `DEMO_MODEL`) are configured in Vercel environment variables, cold visitors can run the network immediately via `x-use-demo: "1"` without exposing server credentials to the client.
+  - **Optional Zero-Setup Demo Mode:** `GET /api/relay` reports `{ ok: true, demoAvailable, demoModel }`. When `DEMO_BASE_URL` and `DEMO_API_KEY` (plus optional `DEMO_MODEL`) are configured in Vercel environment variables, cold visitors on the AURA web app can run the network immediately via `x-use-demo: "1"` (protected by an `Origin` / `Referer` allowlist against off-site abuse, while BYOK remains open) without exposing server credentials to the client.
 
 ---
 

@@ -35,6 +35,54 @@ function getDemoConfig() {
   };
 }
 
+function isAllowedDemoHost(hostname) {
+  const h = String(hostname || "")
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "");
+  if (!h) return false;
+  if (
+    h === "aura-agentic-web.vercel.app" ||
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h === "::1"
+  ) {
+    return true;
+  }
+  if (/^aura-agentic-web-[a-z0-9-]+\.vercel\.app$/.test(h)) {
+    return true;
+  }
+  const runtimeVercelHosts = [
+    cleanEnv(process.env.VERCEL_URL),
+    cleanEnv(process.env.VERCEL_BRANCH_URL),
+    cleanEnv(process.env.VERCEL_PROJECT_PRODUCTION_URL),
+  ]
+    .filter(Boolean)
+    .map((v) => v.toLowerCase().replace(/^https?:\/\//, "").split("/")[0]);
+  return runtimeVercelHosts.includes(h);
+}
+
+function isAllowedDemoCaller(req) {
+  const origin = String(req.headers["origin"] || "").trim();
+  if (origin) {
+    try {
+      const parsed = new URL(origin);
+      return isAllowedDemoHost(parsed.hostname);
+    } catch {
+      return false;
+    }
+  }
+  const referer = String(req.headers["referer"] || "").trim();
+  if (referer) {
+    try {
+      const parsed = new URL(referer);
+      return isAllowedDemoHost(parsed.hostname);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 function isBlockedHost(hostname) {
   const h = String(hostname || "")
     .toLowerCase()
@@ -198,6 +246,15 @@ export default async function handler(req, res) {
   let outBody = bodyObj;
 
   if (useDemo) {
+    if (!isAllowedDemoCaller(req)) {
+      sendJson(res, 403, {
+        error: {
+          message:
+            "Demo router is only available from the AURA web app; supply BYOK headers for external callers.",
+        },
+      });
+      return;
+    }
     const demo = getDemoConfig();
     if (!demo.available) {
       sendJson(res, 503, {
