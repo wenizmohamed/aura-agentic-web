@@ -3,133 +3,290 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Agentic Web Validator — Worldwide Agentic Web MVP Profile 0.2 Conformance &amp; Federation Debugger</title>
+<title>AURA Validator | Worldwide Agentic Web MVP Profile 0.2 Conformance &amp; Federation Debugger</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#0b0a09; --bg2:#111010; --surface:#15140f; --surface2:#1b1914;
-    --paper:#ECE9E3; --muted:#817B71; --muted2:#B0AAA0; --faint:#5a544b;
-    --coral:#EA7A5E; --coral2:#f0906f; --green:#54CF85; --amber:#E2AD55; --flag:#ff5f56; --blue:#6ab0ff;
-    --line:rgba(236,233,227,.09); --line2:rgba(236,233,227,.055);
-    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
-    --serif:"Fraunces",Georgia,serif; --sans:"Inter",system-ui,sans-serif;
+  :root {
+    --canvas-top: #FAF8F5;
+    --canvas-mid: #F4EFE8;
+    --canvas-warm: #FBECE4;
+    --surface: #FFFFFF;
+    --surface-soft: #F7F3ED;
+    --obsidian: #141312;
+    --obsidian-2: #1D1B19;
+    --ink: #191614;
+    --ink-2: #3F3934;
+    --muted: #6F655E;
+    --faint: #9B9087;
+    --ember: #E14A28;
+    --ember-deep: #C43D1E;
+    --ember-soft: #FBEADF;
+    --emerald: #168A5B;
+    --emerald-soft: #E5F5EE;
+    --emerald-bright: #34D399;
+    --amber: #C47A12;
+    --amber-soft: #FCF2E2;
+    --danger: #C9352B;
+    --danger-soft: #FDECEB;
+    --line: rgba(25, 22, 20, 0.08);
+    --line-strong: rgba(25, 22, 20, 0.14);
+    --line-dark: rgba(255, 255, 255, 0.09);
+    --shadow-card: 0 2px 6px rgba(32, 26, 22, 0.05), 0 14px 34px rgba(32, 26, 22, 0.07);
+    --shadow-pill: 0 2px 8px rgba(32, 26, 22, 0.05), 0 8px 20px rgba(32, 26, 22, 0.05);
+    --shadow-stage: 0 18px 46px rgba(20, 19, 18, 0.24), 0 2px 8px rgba(20, 19, 18, 0.14);
+    --r-card: 24px;
+    --r-inner: 16px;
+    --r-pill: 9999px;
+    --font-display: "Space Grotesk", system-ui, sans-serif;
+    --font-serif: "Instrument Serif", Georgia, serif;
+    --font-sans: "Instrument Sans", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
   }
-  *{box-sizing:border-box} html,body{margin:0}
-  body{background:var(--bg);color:var(--paper);font-family:var(--sans);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5;overflow-x:hidden}
-  a{color:var(--muted2);text-decoration:none} a:hover{color:var(--coral)}
-  .lab{font-family:var(--mono);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint)}
-  .topbar{display:flex;align-items:center;gap:12px;padding:13px 24px;border-bottom:1px solid var(--line);background:var(--bg2);flex-wrap:wrap}
-  .mark{display:flex;align-items:center;gap:10px}
-  .mark .sq{width:30px;height:30px;border:1px solid var(--coral);border-radius:7px;display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--coral);font-size:17px}
-  .mark b{font-family:var(--serif);font-weight:500;font-size:16px}
-  .topbar .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .tag{font-family:var(--mono);font-size:10.5px;color:var(--muted2);border:1px solid var(--line);padding:5px 10px;border-radius:5px}
-  .tag:hover{border-color:var(--coral);color:var(--paper)}
 
-  .wrap{max-width:1280px;margin:0 auto;padding:28px 24px 48px}
-  .hero h1{font-family:var(--serif);font-weight:400;font-size:clamp(30px,4vw,44px);line-height:1.06;letter-spacing:-1px;margin:8px 0 12px}
-  .hero h1 em{color:var(--coral);font-style:italic}
-  .hero p{color:var(--muted2);max-width:740px;font-size:15px;margin:0 0 20px}
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; max-width: 100%; overflow-x: clip; }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(880px 520px at 88% 4%, rgba(225, 74, 40, 0.10), transparent 60%),
+      linear-gradient(155deg, var(--canvas-top) 0%, var(--canvas-mid) 60%, var(--canvas-warm) 100%);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  button, input { font-family: inherit; }
 
-  .bar{display:flex;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
-  .bar input{flex:1;min-width:260px;background:var(--bg2);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:12px 14px;font-family:var(--mono);font-size:13px;outline:none}
-  .bar input:focus{border-color:var(--coral)}
-  .btn{font-family:var(--sans);font-weight:600;font-size:13px;border:0;border-radius:8px;padding:10px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .15s;white-space:nowrap}
-  .btn.p{background:var(--coral);color:#1a0f0b} .btn.p:hover{background:var(--coral2)} .btn.p:disabled{opacity:.45;cursor:default}
-  .btn.s{background:rgba(84,207,133,.15);color:var(--green);border:1px solid rgba(84,207,133,.36)} .btn.s:hover{background:rgba(84,207,133,.24)} .btn.s:disabled{opacity:.45;cursor:default}
-  .btn.g{background:transparent;color:var(--muted2);border:1px solid var(--line)} .btn.g:hover{border-color:var(--coral);color:var(--paper)} .btn.g:disabled{opacity:.45;cursor:default}
-  .btn.danger{background:rgba(255,95,86,.14);color:var(--flag);border:1px solid rgba(255,95,86,.36)}
-  .presets{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 22px;align-items:center}
-  .chip{font-family:var(--mono);font-size:11px;color:var(--muted2);border:1px solid var(--line);border-radius:6px;padding:6px 11px;cursor:pointer;background:var(--surface);transition:all .15s}
-  .chip:hover{border-color:var(--coral);color:var(--paper)}
+  .shell { max-width: 1320px; margin: 0 auto; padding: 18px 24px 52px; }
 
-  .summary-row{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:20px}
-  @media(max-width:900px){.summary-row{grid-template-columns:1fr}}
-  .score-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;justify-content:space-between;gap:12px}
-  .score-num{font-family:var(--mono);font-size:48px;font-weight:700;line-height:1}
-  .score-num.pass{color:var(--green)} .score-num.warn{color:var(--amber)} .score-num.fail{color:var(--flag)}
-  .grade{font-family:var(--mono);font-size:12px;letter-spacing:.8px;padding:4px 10px;border-radius:6px;display:inline-block;width:fit-content}
-  .grade.pass{background:rgba(84,207,133,.15);color:var(--green);border:1px solid rgba(84,207,133,.35)}
-  .grade.warn{background:rgba(226,173,85,.15);color:var(--amber);border:1px solid rgba(226,173,85,.35)}
-  .grade.fail{background:rgba(255,95,86,.15);color:var(--flag);border:1px solid rgba(255,95,86,.35)}
-  .score-meta{font-family:var(--mono);font-size:11px;color:var(--muted2);word-break:break-all;line-height:1.55}
-  .score-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .topnav {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 24px; flex-wrap: wrap;
+  }
+  .brand-pill {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-pill);
+    padding: 8px 18px 8px 10px; box-shadow: var(--shadow-pill);
+  }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--ink);
+    display: grid; place-items: center;
+  }
+  .brand-mark::after {
+    content: ""; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--ember); box-shadow: 0 0 0 3px rgba(225, 74, 40, 0.25);
+  }
+  .brand-text { display: inline-flex; align-items: baseline; gap: 6px; line-height: 1; }
+  .brand-text strong { font-family: var(--font-display); font-weight: 700; font-size: 16px; letter-spacing: -0.03em; }
+  .brand-text em { font-family: var(--font-serif); font-style: italic; font-size: 20px; color: var(--ember); }
 
-  .graph-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
-  .graph-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  .svg-box{background:var(--bg2);border:1px solid var(--line2);border-radius:10px;min-height:210px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-  .svg-box svg{width:100%;height:215px;display:block}
-  .gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  @media(max-width:720px){.gauges{grid-template-columns:repeat(2,1fr)}}
-  .gbox{background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:10.5px}
-  .gbox .gl{color:var(--faint);text-transform:uppercase;font-size:9.5px;letter-spacing:.8px}
-  .gbox .gv{color:var(--paper);font-weight:700;font-size:13px;margin-top:2px}
-  .gtrack{height:4px;background:rgba(236,233,227,.08);border-radius:3px;margin-top:5px;overflow:hidden}
-  .gfill{height:100%;background:var(--green);width:0%;transition:width .25s}
+  .nav-right { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-pill);
+    padding: 8px 14px; color: var(--ink-2); box-shadow: var(--shadow-pill);
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .tag:hover { border-color: var(--ember); color: var(--ember); }
 
-  .checks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;margin-bottom:20px}
-  .chk{background:var(--surface);border:1px solid var(--line2);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:5px}
-  .chk.pass{border-color:rgba(84,207,133,.3)}
-  .chk.fail{border-color:rgba(255,95,86,.45);background:rgba(255,95,86,.06)}
-  .chk-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
-  .chk-name{font-weight:600;font-size:13.5px}
-  .chk-badge{font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px}
-  .chk.pass .chk-badge{background:rgba(84,207,133,.16);color:var(--green)}
-  .chk.fail .chk-badge{background:rgba(255,95,86,.2);color:var(--flag)}
-  .chk-meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;word-break:break-all}
-  .chk-detail{font-family:var(--mono);font-size:11px;color:var(--muted2);line-height:1.45;word-break:break-word}
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  }
+  .hero { margin-bottom: 20px; }
+  .hero h1 {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: clamp(2rem, 3.8vw, 3rem); line-height: 1.05;
+    letter-spacing: -0.035em; margin: 8px 0 10px;
+  }
+  .hero h1 em { font-family: var(--font-serif); font-style: italic; font-weight: 400; color: var(--ember); font-size: 1.1em; }
+  .hero p { color: var(--muted); max-width: 780px; font-size: 15px; margin: 0; }
 
-  .dryrun-box{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;color:var(--paper);line-height:1.55;display:none}
-  .dryrun-box.show{display:block}
+  .bar-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card);
+    padding: 16px; box-shadow: var(--shadow-card); margin-bottom: 18px;
+  }
+  .bar { display: flex; gap: 10px; flex-wrap: wrap; }
+  .bar input {
+    flex: 1; min-width: 240px; background: var(--surface-soft); border: 1px solid var(--line-strong);
+    color: var(--ink); border-radius: var(--r-pill); padding: 11px 16px;
+    font-family: var(--font-mono); font-size: 12.5px; outline: none;
+  }
+  .bar input:focus { border-color: var(--ember); background: #FFFFFF; box-shadow: 0 0 0 3px rgba(225, 74, 40, 0.12); }
 
-  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:18px;z-index:1000}
-  .modal-backdrop.open{display:flex}
-  .modal{width:100%;max-width:490px;background:var(--surface);border:1px solid rgba(234,122,94,.42);border-radius:13px;padding:22px}
-  .modal h3{font-family:var(--serif);font-weight:500;font-size:21px;margin:6px 0 10px}
-  .modal .mmeta{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:11px;color:var(--muted2);word-break:break-all;margin:10px 0 14px}
-  .modal .mactions{display:flex;gap:10px;justify-content:flex-end}
-  footer{border-top:1px solid var(--line);padding:18px 24px;display:flex;gap:18px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .btn {
+    border: 0; border-radius: var(--r-pill); padding: 10px 18px; font-size: 13px; font-weight: 600;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+    transition: all 0.15s ease;
+  }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .btn.p { background: var(--ember); color: #FFFFFF; box-shadow: 0 6px 18px rgba(225, 74, 40, 0.24); }
+  .btn.p:hover:not(:disabled) { background: var(--ember-deep); }
+  .btn.s { background: var(--emerald-soft); color: var(--emerald); border: 1px solid rgba(22, 138, 91, 0.28); }
+  .btn.s:hover:not(:disabled) { background: #D5EFE3; }
+  .btn.g { background: var(--surface-soft); color: var(--ink-2); border: 1px solid var(--line); }
+  .btn.g:hover:not(:disabled) { border-color: var(--ember); color: var(--ember-deep); }
+  .btn.danger { background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(201, 53, 43, 0.3); }
+
+  .presets { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  .chip {
+    font-family: var(--font-mono); font-size: 11px; color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: var(--r-pill); padding: 6px 12px;
+    cursor: pointer; background: var(--surface-soft); transition: all 0.15s ease;
+  }
+  .chip:hover { background: var(--ember-soft); border-color: rgba(225, 74, 40, 0.35); color: var(--ember-deep); }
+
+  .summary-row { display: grid; grid-template-columns: 320px 1fr; gap: 18px; margin-bottom: 18px; }
+  @media (max-width: 960px) { .summary-row { grid-template-columns: 1fr; } }
+
+  .score-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card);
+    padding: 22px; box-shadow: var(--shadow-card); display: flex; flex-direction: column;
+    justify-content: space-between; gap: 14px;
+  }
+  .score-num {
+    font-family: var(--font-display); font-size: 52px; font-weight: 700;
+    line-height: 1; letter-spacing: -0.04em; margin-top: 6px; font-variant-numeric: tabular-nums;
+  }
+  .score-num.pass { color: var(--emerald); }
+  .score-num.warn { color: var(--amber); }
+  .score-num.fail { color: var(--danger); }
+  .grade {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.06em; padding: 5px 12px; border-radius: var(--r-pill);
+    display: inline-block; width: fit-content; background: var(--surface-soft); color: var(--muted);
+  }
+  .grade.pass { background: var(--emerald-soft); color: var(--emerald); }
+  .grade.warn { background: var(--amber-soft); color: var(--amber); }
+  .grade.fail { background: var(--danger-soft); color: var(--danger); }
+  .score-meta { font-family: var(--font-mono); font-size: 11px; color: var(--muted); word-break: break-all; line-height: 1.6; }
+  .score-meta b { color: var(--ink); }
+  .score-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .graph-card {
+    background: var(--obsidian); color: #FAF8F5; border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: var(--r-card); padding: 22px; box-shadow: var(--shadow-stage);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .graph-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .graph-card .eyebrow { color: #9A8F85; }
+  .privacy-pill {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    padding: 5px 11px; border-radius: var(--r-pill);
+    background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.3); color: var(--emerald-bright);
+  }
+  .svg-box {
+    background: #0D0C0B; border: 1px solid var(--line-dark); border-radius: 18px;
+    min-height: 210px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .svg-box svg { width: 100%; height: 215px; display: block; }
+  .gauges { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  @media (max-width: 720px) { .gauges { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .gbox {
+    background: var(--obsidian-2); border: 1px solid var(--line-dark); border-radius: 13px;
+    padding: 9px 11px; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  }
+  .gbox .gl { color: #8A8077; text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.08em; }
+  .gbox .gv { color: #FFFFFF; font-weight: 700; font-size: 13px; margin-top: 2px; }
+  .gtrack { height: 4px; background: rgba(255, 255, 255, 0.09); border-radius: 99px; margin-top: 6px; overflow: hidden; }
+  .gfill { height: 100%; background: linear-gradient(90deg, var(--ember), var(--emerald-bright)); width: 0%; transition: width 0.25s; }
+
+  .dryrun-box {
+    background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--emerald);
+    border-radius: var(--r-inner); padding: 16px 18px; font-family: var(--font-mono);
+    font-size: 11.5px; white-space: pre-wrap; color: var(--ink); line-height: 1.55;
+    box-shadow: var(--shadow-card); display: none; margin-bottom: 18px;
+  }
+  .dryrun-box.show { display: block; }
+
+  .checks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+  .chk {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-inner);
+    padding: 14px 16px; box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: 6px;
+  }
+  .chk.pass { border-color: rgba(22, 138, 91, 0.25); }
+  .chk.fail { background: var(--danger-soft); border-color: rgba(201, 53, 43, 0.35); }
+  .chk-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .chk-name { font-weight: 600; font-size: 13.5px; color: var(--ink); }
+  .chk-badge {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: var(--r-pill);
+  }
+  .chk.pass .chk-badge { background: var(--emerald-soft); color: var(--emerald); }
+  .chk.fail .chk-badge { background: rgba(201, 53, 43, 0.16); color: var(--danger); }
+  .chk-meta { font-family: var(--font-mono); font-size: 10px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; word-break: break-all; }
+  .chk-detail { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-2); line-height: 1.45; word-break: break-word; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(25, 22, 20, 0.56); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center; padding: 18px; z-index: 1000;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    width: 100%; max-width: 490px; background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: var(--r-card); padding: 24px; box-shadow: 0 28px 70px rgba(25, 22, 20, 0.28);
+  }
+  .modal h3 { font-family: var(--font-display); font-weight: 600; font-size: 21px; margin: 6px 0 10px; }
+  .modal .mmeta {
+    background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px;
+    padding: 10px 12px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-2);
+    word-break: break-all; margin: 10px 0 14px;
+  }
+  .modal .mactions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  .site-footer {
+    margin-top: 26px; padding: 16px 22px; background: rgba(255, 255, 255, 0.72);
+    border: 1px solid var(--line); border-radius: var(--r-pill); display: flex;
+    gap: 16px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+  }
+  .site-footer a:hover { color: var(--ember); }
 </style>
 </head>
 <body>
-  <div class="topbar">
-    <div class="mark"><div class="sq">A</div><b>AURA Validator</b></div>
-    <span class="lab">Open Community Tool &middot; MVP Profile 0.2</span>
-    <div class="right">
-      <a class="tag" href="/">&larr; Back to AURA Console</a>
-      <a class="tag" href="/agent-manifest.json" target="_blank">/agent-manifest.json</a>
-      <a class="tag" href="/runtime.js" target="_blank">/runtime.js</a>
-    </div>
-  </div>
+  <div class="shell">
+    <header class="topnav">
+      <a class="brand-pill" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-text"><strong>AURA</strong><em>Validator</em></span>
+      </a>
+      <div class="nav-right">
+        <a class="tag" href="/">&larr; Back to AURA Studio</a>
+        <a class="tag" href="/agent-manifest.json" target="_blank">/agent-manifest.json</a>
+        <a class="tag" href="/runtime.js" target="_blank">/runtime.js</a>
+      </div>
+    </header>
 
-  <div class="wrap">
     <div class="hero">
-      <div class="lab">WORLDWIDE AGENTIC WEB &middot; OPEN CONFORMANCE &amp; FEDERATION DEBUGGER</div>
+      <div class="eyebrow">Worldwide Agentic Web &middot; Open Conformance &amp; Federation Debugger</div>
       <h1>Validate any <em>Agentic Website</em> in 1 click.</h1>
-      <p>Paste any Agentic Web origin, peer network URL (<code>/agents/&lt;name&gt;</code>), or manifest URL below. This zero-server browser tool audits 10 live Worldwide Agentic Web MVP Profile 0.2 criteria (HTTPS, manifest JSON, open CORS, well-known discovery, Neuro SAN graph safety, finite execution bounds, and deny-by-default <code>sly_data</code> isolation), visualizes the agent topology as an interactive SVG graph, and runs a zero-key federation dry-run.</p>
+      <p>Paste any Agentic Web origin, peer network URL (<code>/agents/&lt;name&gt;</code>), or manifest URL below. This zero-server browser tool audits 10 live Worldwide Agentic Web MVP Profile 0.2 criteria, renders the Neuro SAN agent topology, and runs a zero-key federation dry-run.</p>
     </div>
 
-    <div class="bar">
-      <input id="targetUrl" placeholder="https://aura-agentic-web.vercel.app/agents/aura-core" autocomplete="url" />
-      <button class="btn p" id="runAudit" type="button">Audit Site (100-Pt Rubric)</button>
-      <button class="btn s" id="runDryRun" type="button" disabled>Federate &amp; Dry-Run Graph</button>
-    </div>
+    <div class="bar-card">
+      <div class="bar">
+        <input id="targetUrl" placeholder="https://aura-agentic-web.vercel.app/agents/aura-core" autocomplete="url" />
+        <button class="btn p" id="runAudit" type="button">Audit Site (100-Pt Rubric)</button>
+        <button class="btn s" id="runDryRun" type="button" disabled>Federate &amp; Dry-Run Graph</button>
+      </div>
 
-    <div class="presets">
-      <span class="lab">Presets:</span>
-      <button class="chip" data-url="https://aura-agentic-web.vercel.app" type="button">AURA Root Canonical</button>
-      <button class="chip" data-url="https://aura-agentic-web.vercel.app/agents/aura-core" type="button">AURA Peer Subpath (/agents/aura-core)</button>
-      <button class="chip" data-url="https://aura-agentic-web.vercel.app/agents/nonexistent-peer" type="button">Fail-Closed Mismatch Test</button>
+      <div class="presets">
+        <span class="eyebrow">Presets:</span>
+        <button class="chip" data-url="https://aura-agentic-web.vercel.app" type="button">AURA Root Canonical</button>
+        <button class="chip" data-url="https://aura-agentic-web.vercel.app/agents/aura-core" type="button">AURA Peer Subpath (/agents/aura-core)</button>
+        <button class="chip" data-url="https://aura-agentic-web.vercel.app/agents/nonexistent-peer" type="button">Fail-Closed Mismatch Test</button>
+      </div>
     </div>
 
     <div class="summary-row">
       <div class="score-card">
         <div>
-          <div class="lab">Conformance Score</div>
+          <div class="eyebrow">Conformance Score</div>
           <div class="score-num" id="scoreNum">--</div>
-          <div class="grade" id="gradeBadge" style="margin-top:8px">READY</div>
+          <div class="grade" id="gradeBadge" style="margin-top: 8px;">READY</div>
         </div>
         <div class="score-meta" id="scoreMeta">Enter any Agentic Web URL or click a preset to start a live browser conformance audit.</div>
         <div class="score-actions">
@@ -141,10 +298,10 @@
       <div class="graph-card">
         <div class="graph-head">
           <div>
-            <span class="lab">Live SVG Agent Delegation Graph</span>
-            <div style="font-family:var(--mono);font-size:11.5px;color:var(--muted2)" id="graphLabel">Waiting for validated Neuro SAN network...</div>
+            <span class="eyebrow">Live SVG Agent Delegation Graph</span>
+            <div style="font-family: var(--font-mono); font-size: 11.5px; color: #D7CFC6; margin-top: 2px;" id="graphLabel">Waiting for validated Neuro SAN network...</div>
           </div>
-          <span class="tag" id="privacyPill">sly_data: deny_by_default</span>
+          <span class="privacy-pill" id="privacyPill">sly_data: deny_by_default</span>
         </div>
         <div class="svg-box" id="svgBox">
           <svg id="delegationSvg" viewBox="0 0 760 215" role="img" aria-label="Agent Delegation Topology Graph"></svg>
@@ -159,13 +316,21 @@
     </div>
 
     <div class="dryrun-box" id="dryrunBox"></div>
-    <div style="height:14px"></div>
     <div class="checks-grid" id="checksGrid"></div>
+
+    <footer class="site-footer">
+      <span>OPEN SOURCE / MIT</span>
+      <a href="/">AURA Studio</a>
+      <a href="/agent-manifest.json" target="_blank">/agent-manifest.json</a>
+      <a href="/.well-known/agent-manifest.json" target="_blank">/.well-known/agent-manifest.json</a>
+      <a href="/aura-core.json" target="_blank">/aura-core.json</a>
+      <a href="/runtime.js" target="_blank">/runtime.js</a>
+    </footer>
   </div>
 
   <div class="modal-backdrop" id="consentModal" role="dialog" aria-modal="true" hidden>
     <div class="modal">
-      <div class="lab" style="color:var(--coral)">MVP Profile 0.2 &middot; Explicit Cross-Origin Consent</div>
+      <div class="eyebrow" style="color: var(--ember);">MVP Profile 0.2 &middot; Explicit Cross-Origin Consent</div>
       <h3>Contact external origin for audit?</h3>
       <div class="mmeta" id="consentMeta"></div>
       <div class="mactions">
@@ -174,15 +339,6 @@
       </div>
     </div>
   </div>
-
-  <footer>
-    <span>OPEN SOURCE / MIT</span>
-    <a href="/">AURA Console</a>
-    <a href="/agent-manifest.json" target="_blank">/agent-manifest.json</a>
-    <a href="/.well-known/agent-manifest.json" target="_blank">/.well-known/agent-manifest.json</a>
-    <a href="/aura-core.json" target="_blank">/aura-core.json</a>
-    <a href="/runtime.js" target="_blank">/runtime.js</a>
-  </footer>
 
 <script type="module">
 import { AuraRuntime, auditExternalAgenticSite } from "./runtime.js";
@@ -230,21 +386,21 @@ $("consentDeny").onclick = () => closeConsent(false);
 function renderSvgGraph(graph) {
   const svg = $("delegationSvg");
   if (!graph || !graph.nodes || !graph.nodes.length) {
-    svg.innerHTML = '<text x="380" y="112" text-anchor="middle" fill="#817B71" font-family="JetBrains Mono,monospace" font-size="13">No valid Neuro SAN graph loaded yet</text>';
+    svg.innerHTML = '<text x="380" y="112" text-anchor="middle" fill="#8A8077" font-family="JetBrains Mono,monospace" font-size="13">No valid Neuro SAN graph loaded yet</text>';
     return;
   }
   const front = graph.nodes.find((n) => n.isFront) || graph.nodes[0];
   const others = graph.nodes.filter((n) => n.id !== front.id);
   const pos = new Map();
-  pos.set(front.id, { x: 380, y: 44 });
+  pos.set(front.id, { x: 380, y: 46 });
   const span = Math.max(1, others.length);
   others.forEach((n, i) => {
     const x = span === 1 ? 380 : 100 + (560 * i) / (span - 1);
     pos.set(n.id, { x, y: 162 });
   });
 
-  let out = '<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#5a544b"/></marker>' +
-    '<marker id="arr-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#54CF85"/></marker></defs>';
+  let out = '<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#5A534C"/></marker>' +
+    '<marker id="arr-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#34D399"/></marker></defs>';
 
   for (const e of graph.edges) {
     const a = pos.get(e.from), b = pos.get(e.to);
@@ -252,14 +408,14 @@ function renderSvgGraph(graph) {
     const key = e.from + "->" + e.to;
     const count = hopCounts.get(key) || 0;
     const isHot = activeEdgeKey === key;
-    const stroke = isHot ? "#54CF85" : count > 0 ? "#EA7A5E" : "rgba(236,233,227,0.2)";
+    const stroke = isHot ? "#34D399" : count > 0 ? "#E14A28" : "rgba(255,255,255,0.18)";
     const sw = isHot ? 3 : count > 0 ? 2.2 : 1.4;
     const midX = (a.x + b.x) / 2;
     const midY = (a.y + b.y) / 2 - 12;
     out += `<path d="M ${a.x} ${a.y + 20} Q ${midX} ${midY} ${b.x} ${b.y - 22}" fill="none" stroke="${stroke}" stroke-width="${sw}" marker-end="url(#${isHot ? "arr-hot" : "arr"})"/>`;
     if (count > 0) {
-      out += `<rect x="${midX - 14}" y="${midY - 8}" width="28" height="16" rx="5" fill="#15140f" stroke="${stroke}" stroke-width="1"/>`;
-      out += `<text x="${midX}" y="${midY + 4}" text-anchor="middle" fill="#ECE9E3" font-family="JetBrains Mono,monospace" font-size="10">x${count}</text>`;
+      out += `<rect x="${midX - 15}" y="${midY - 9}" width="30" height="17" rx="8.5" fill="#141312" stroke="${stroke}" stroke-width="1.2"/>`;
+      out += `<text x="${midX}" y="${midY + 3}" text-anchor="middle" fill="#FAF8F5" font-family="JetBrains Mono,monospace" font-size="10">x${count}</text>`;
     }
   }
 
@@ -268,10 +424,10 @@ function renderSvgGraph(graph) {
     if (!p) continue;
     const isActive = activeNodeId === n.id;
     const isDone = completedNodes.has(n.id);
-    const fill = isActive ? "rgba(84,207,133,0.18)" : n.isFront ? "rgba(234,122,94,0.14)" : "#15140f";
-    const stroke = isActive ? "#54CF85" : isDone ? "rgba(84,207,133,0.75)" : n.isFront ? "#EA7A5E" : "rgba(236,233,227,0.22)";
-    out += `<g><rect x="${p.x - 68}" y="${p.y - 20}" width="136" height="40" rx="9" fill="${fill}" stroke="${stroke}" stroke-width="${isActive ? 2.4 : 1.5}"/>`;
-    out += `<text x="${p.x}" y="${p.y + 4}" text-anchor="middle" fill="#ECE9E3" font-family="JetBrains Mono,monospace" font-size="12" font-weight="600">${esc(n.id)}</text></g>`;
+    const fill = isActive ? "rgba(225,74,40,0.24)" : isDone ? "rgba(52,211,153,0.14)" : n.isFront ? "rgba(225,74,40,0.14)" : "#1A1816";
+    const stroke = isActive ? "#FF7857" : isDone ? "#34D399" : n.isFront ? "#E14A28" : "rgba(255,255,255,0.2)";
+    out += `<g><rect x="${p.x - 68}" y="${p.y - 20}" width="136" height="40" rx="20" fill="${fill}" stroke="${stroke}" stroke-width="${isActive ? 2.4 : 1.5}"/>`;
+    out += `<text x="${p.x}" y="${p.y + 4}" text-anchor="middle" fill="#FAF8F5" font-family="JetBrains Mono,monospace" font-size="12" font-weight="600">${esc(n.id)}</text></g>`;
   }
   svg.innerHTML = out;
 }
@@ -377,9 +533,7 @@ $("runDryRun").onclick = async () => {
   let maxDepth = 0;
   const rt = new AuraRuntime({
     onEvent: (ev) => {
-      if (typeof ev.depth === "number") {
-        maxDepth = Math.max(maxDepth, ev.depth);
-      }
+      if (typeof ev.depth === "number") maxDepth = Math.max(maxDepth, ev.depth);
       if (ev.type === "agent_delegate") {
         const key = ev.from + "->" + ev.to;
         hopCounts.set(key, (hopCounts.get(key) || 0) + 1);
@@ -440,7 +594,6 @@ $("copyBadge").onclick = async () => {
   }
 };
 
-// Auto-audit from ?url=... query param or default canonical self URL
 const params = new URLSearchParams(location.search);
 const initialUrl = params.get("url") || (location.origin.startsWith("http") ? location.origin + "/agents/aura-core" : "https://aura-agentic-web.vercel.app/agents/aura-core");
 runAudit(initialUrl);

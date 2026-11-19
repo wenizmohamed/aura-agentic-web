@@ -3,217 +3,1427 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AURA Agentic Web — Portable Neuro SAN Browser Network (MVP Profile 0.2)</title>
+<title>AURA Agentic Web | Portable Neuro SAN Browser Network (MVP Profile 0.2)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#0b0a09; --bg2:#111010; --surface:#15140f; --surface2:#1b1914; --raise:#201d17;
-    --paper:#ECE9E3; --muted:#817B71; --muted2:#B0AAA0; --faint:#5a544b;
-    --coral:#EA7A5E; --coral2:#f0906f; --green:#54CF85; --amber:#E2AD55; --flag:#ff5f56; --blue:#6ab0ff;
-    --line:rgba(236,233,227,.09); --line2:rgba(236,233,227,.055);
-    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
-    --serif:"Fraunces",Georgia,serif; --sans:"Inter",system-ui,sans-serif;
+  :root {
+    --canvas-top: #FAF8F5;
+    --canvas-mid: #F4EFE8;
+    --canvas-warm: #FBECE4;
+    --surface: #FFFFFF;
+    --surface-soft: #F7F3ED;
+    --surface-tint: #FBEADF;
+    --obsidian: #141312;
+    --obsidian-2: #1D1B19;
+    --obsidian-3: #262320;
+    --ink: #191614;
+    --ink-2: #3F3934;
+    --muted: #6F655E;
+    --faint: #9B9087;
+    --ember: #E14A28;
+    --ember-deep: #C43D1E;
+    --ember-soft: #FBEADF;
+    --emerald: #168A5B;
+    --emerald-soft: #E5F5EE;
+    --emerald-bright: #34D399;
+    --amber: #C47A12;
+    --amber-soft: #FCF2E2;
+    --danger: #C9352B;
+    --danger-soft: #FDECEB;
+    --line: rgba(25, 22, 20, 0.08);
+    --line-strong: rgba(25, 22, 20, 0.14);
+    --line-dark: rgba(255, 255, 255, 0.09);
+    --shadow-card: 0 2px 6px rgba(32, 26, 22, 0.05), 0 14px 34px rgba(32, 26, 22, 0.07);
+    --shadow-pill: 0 2px 8px rgba(32, 26, 22, 0.05), 0 8px 20px rgba(32, 26, 22, 0.05);
+    --shadow-stage: 0 18px 46px rgba(20, 19, 18, 0.24), 0 2px 8px rgba(20, 19, 18, 0.14);
+    --r-card: 24px;
+    --r-inner: 16px;
+    --r-sm: 12px;
+    --r-pill: 9999px;
+    --font-display: "Space Grotesk", system-ui, sans-serif;
+    --font-serif: "Instrument Serif", Georgia, serif;
+    --font-sans: "Instrument Sans", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
   }
-  *{box-sizing:border-box} html,body{margin:0}
-  body{background:var(--bg);color:var(--paper);font-family:var(--sans);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5;overflow-x:hidden}
-  a{color:var(--muted2);text-decoration:none} a:hover{color:var(--coral)}
-  .mono{font-family:var(--mono)}
-  .lab{font-family:var(--mono);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--faint)}
 
-  /* top bar */
-  .topbar{display:flex;align-items:center;gap:12px;padding:13px 22px;border-bottom:1px solid var(--line);background:var(--bg2);flex-wrap:wrap}
-  .mark{display:flex;align-items:center;gap:11px}
-  .mark .sq{width:30px;height:30px;border:1px solid var(--coral);border-radius:7px;display:grid;place-items:center;font-family:var(--serif);font-weight:600;color:var(--coral);font-size:17px}
-  .mark b{font-family:var(--serif);font-weight:500;font-size:16px;letter-spacing:-.2px}
-  .bc{margin-left:4px;color:var(--faint);font-family:var(--mono);font-size:11px}
-  .bc span{color:var(--muted)}
-  .topbar .right{margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
-  .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.4px;color:var(--muted);border:1px solid var(--line);padding:5px 10px;border-radius:5px;background:transparent}
-  .tag.linkbtn{cursor:pointer;transition:border .15s,color .15s}
-  .tag.linkbtn:hover{border-color:var(--coral);color:var(--paper)}
-  .tag.pass{color:var(--green);border-color:rgba(84,207,133,.32);background:rgba(84,207,133,.06)}
-  .tag.fail{color:var(--flag);border-color:rgba(255,95,86,.4);background:rgba(255,95,86,.08)}
-  .dot{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.5px;color:var(--green);border:1px solid rgba(84,207,133,.25);padding:5px 10px;border-radius:5px}
-  .dot::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);animation:blink 2s infinite}
-  @keyframes blink{50%{opacity:.4}}
-  @keyframes pulseRun{0%,100%{box-shadow:0 0 12px rgba(84,207,133,.14)}50%{box-shadow:0 0 22px rgba(84,207,133,.32)}}
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  html, body { margin: 0; padding: 0; max-width: 100%; overflow-x: clip; }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(900px 540px at 88% 4%, rgba(225, 74, 40, 0.10), transparent 60%),
+      radial-gradient(760px 520px at 10% 24%, rgba(255, 255, 255, 0.72), transparent 65%),
+      linear-gradient(155deg, var(--canvas-top) 0%, var(--canvas-mid) 60%, var(--canvas-warm) 100%);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
 
-  /* hero band */
-  .band{padding:34px 22px 24px;border-bottom:1px solid var(--line);position:relative;overflow:hidden}
-  .band::after{content:"";position:absolute;right:-80px;top:-120px;width:520px;height:520px;background:radial-gradient(circle,rgba(234,122,94,.1),transparent 62%);pointer-events:none}
-  .band .idx{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:2px;margin-bottom:12px}
-  .band h1{font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,52px);line-height:1.03;letter-spacing:-1.3px;margin:0;max-width:880px}
-  .band h1 em{font-style:italic;color:var(--coral)}
-  .band .lede{margin:15px 0 0;max-width:680px;color:var(--muted2);font-size:15px;line-height:1.6}
-  .band .lede b{color:var(--paper);font-weight:600}
-  .hero-actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;align-items:center}
-  .hero-actions .btn{padding:11px 18px;font-size:13.5px}
-  .hero-note{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:4px}
-  .metarow{display:flex;gap:32px;margin-top:22px;flex-wrap:wrap;align-items:flex-end}
-  .metarow .m .v{font-family:var(--mono);font-size:20px;color:var(--paper);font-weight:500}
-  .metarow .m .k{font-family:var(--mono);font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--faint);margin-top:2px}
-  .endpoint-pills{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
-  .ep{font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:5px;border:1px solid var(--line);background:var(--surface);color:var(--muted2);display:inline-flex;align-items:center;gap:5px}
-  .ep .s{width:6px;height:6px;border-radius:50%;background:var(--faint)}
-  .ep.ok{border-color:rgba(84,207,133,.32);color:var(--paper)}
-  .ep.ok .s{background:var(--green);box-shadow:0 0 6px var(--green)}
-  .ep.bad{border-color:rgba(255,95,86,.45);color:var(--flag)}
-  .ep.bad .s{background:var(--flag)}
+  a { color: inherit; text-decoration: none; }
+  button, input, textarea { font-family: inherit; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
-  /* grid */
-  .grid{display:grid;grid-template-columns:255px 1fr 340px;gap:0;min-height:560px}
-  @media(max-width:1080px){.grid{grid-template-columns:1fr}.endpoint-pills{margin-left:0}}
-  .col{border-right:1px solid var(--line);padding:18px}
-  .col:last-child{border-right:0}
-  @media(max-width:1080px){.col{border-right:0;border-bottom:1px solid var(--line)}}
-  .sechead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
-  .sechead .n{font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .shell {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 16px 24px 52px;
+  }
 
-  /* roster */
-  .agent{border:1px solid var(--line2);border-radius:9px;padding:11px 12px;margin-bottom:9px;background:var(--surface);transition:border .2s,background .2s,box-shadow .2s}
-  .agent.front{border-color:rgba(234,122,94,.4);background:linear-gradient(180deg,rgba(234,122,94,.06),var(--surface))}
-  .agent.done{border-color:rgba(84,207,133,.36);background:linear-gradient(180deg,rgba(84,207,133,.04),var(--surface))}
-  .agent.lit,.agent.running{border-color:var(--green);background:linear-gradient(180deg,rgba(84,207,133,.11),var(--surface));animation:pulseRun 1.4s ease-in-out infinite}
-  .agent .nm{font-family:var(--serif);font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px}
-  .agent .nm .led{width:7px;height:7px;border-radius:50%;background:var(--faint);transition:all .2s}
-  .agent.front .nm .led{background:var(--coral);box-shadow:0 0 7px var(--coral)}
-  .agent.done .nm .led{background:var(--green);box-shadow:0 0 5px rgba(84,207,133,.5)}
-  .agent.lit .nm .led,.agent.running .nm .led{background:var(--green);box-shadow:0 0 10px var(--green);animation:blink .9s infinite}
-  .agent .rl{font-family:var(--mono);font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin-top:5px}
-  .agent .ds{font-size:11.5px;color:var(--muted2);margin-top:7px;line-height:1.45}
-  .bounds-card{margin-top:14px;border:1px solid var(--line2);border-radius:9px;padding:11px 12px;background:var(--bg2);font-family:var(--mono);font-size:10.5px;color:var(--muted2);line-height:1.65}
-  .bounds-card .bt{color:var(--faint);letter-spacing:1px;text-transform:uppercase;font-size:9.5px;margin-bottom:5px}
-  .bounds-card b{color:var(--paper);font-weight:500}
+  /* Preview banner */
+  .preview-banner {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 9px 18px;
+    background: var(--ink);
+    color: #F4EFE8;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    flex-wrap: wrap;
+  }
+  .preview-banner.show { display: flex; }
+  .preview-banner a { color: #FF8E72; border-bottom: 1px dashed rgba(255, 142, 114, 0.55); }
 
-  /* chat */
-  .chatcol{display:flex;flex-direction:column;padding:0}
-  .pipeline{display:flex;align-items:stretch;gap:0;padding:12px 18px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-  .stage{flex:1;min-width:74px;border:1px solid var(--line2);border-radius:8px;background:var(--surface);padding:9px 10px;transition:all .25s;position:relative}
-  .stage .sn{font-family:var(--mono);font-size:9px;color:var(--faint);letter-spacing:1px}
-  .stage .st2{display:block;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.8px;color:var(--muted2);margin-top:3px}
-  .stage .sa{display:block;font-family:var(--serif);font-size:12px;color:var(--muted);margin-top:4px}
-  .stage.done{border-color:rgba(84,207,133,.38);background:linear-gradient(180deg,rgba(84,207,133,.05),var(--surface))}
-  .stage.done .st2{color:rgba(84,207,133,.88)}
-  .stage.done .sn::after{content:" \2713";color:var(--green)}
-  .stage.lit,.stage.running{border-color:var(--green);background:linear-gradient(180deg,rgba(84,207,133,.14),var(--surface));animation:pulseRun 1.4s ease-in-out infinite}
-  .stage.lit .st2,.stage.running .st2{color:var(--green)}
-  .stage.lit .sa,.stage.running .sa{color:var(--paper)}
-  .flow{display:flex;align-items:center;color:var(--faint);padding:0 6px;font-size:13px}
-  @media(max-width:1080px){.flow{display:none}.pipeline{gap:7px}}
-  .chat{flex:1;overflow:auto;padding:16px 20px;max-height:360px;min-height:165px}
-  /* Live SVG Delegation Graph + Finite-Bound Gauges */
-  .graph-strip{padding:10px 18px 12px;border-bottom:1px solid var(--line);background:rgba(17,16,16,.65)}
-  .graph-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap}
-  .graph-svg-wrap{background:var(--bg);border:1px solid var(--line2);border-radius:8px;overflow:hidden}
-  .graph-svg-wrap svg{width:100%;height:152px;display:block}
-  .gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px}
-  @media(max-width:720px){.gauges{grid-template-columns:repeat(2,1fr)}}
-  .gauge{background:var(--surface);border:1px solid var(--line2);border-radius:7px;padding:6px 9px;font-family:var(--mono)}
-  .gauge .gl{font-size:9px;letter-spacing:.9px;color:var(--faint);text-transform:uppercase;display:flex;justify-content:space-between}
-  .gauge .gv{font-size:11.5px;color:var(--paper);font-weight:700;margin-top:2px}
-  .gauge .gt{height:3px;border-radius:3px;background:rgba(236,233,227,.08);margin-top:4px;overflow:hidden}
-  .gauge .gf{height:100%;width:0%;background:var(--green);transition:width .2s ease}
+  /* Floating Pill Top Navigation */
+  .topnav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 40;
+  }
 
-  /* External Peer-Site Conformance Validator */
-  .val-section{border-top:1px solid var(--line);padding:24px 22px 26px;background:var(--bg)}
-  .val-bar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 10px}
-  .val-bar input{flex:1;min-width:240px;background:var(--bg2);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:10px 13px;font-family:var(--mono);font-size:12.5px;outline:none}
-  .val-bar input:focus{border-color:var(--coral)}
-  .val-res-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;font-family:var(--mono);font-size:12px}
-  .val-res-head[hidden]{display:none}
-  .val-score{font-size:18px;font-weight:700;padding:4px 11px;border-radius:7px;border:1px solid var(--line);background:var(--surface)}
-  .val-score.pass{color:var(--green);border-color:rgba(84,207,133,.38);background:rgba(84,207,133,.09)}
-  .val-score.warn{color:var(--amber);border-color:rgba(226,173,85,.38);background:rgba(226,173,85,.09)}
-  .val-score.fail{color:var(--flag);border-color:rgba(255,95,86,.45);background:rgba(255,95,86,.09)}
-  .chat::-webkit-scrollbar,.trace::-webkit-scrollbar{width:7px}.chat::-webkit-scrollbar-thumb,.trace::-webkit-scrollbar-thumb{background:var(--line);border-radius:7px}
-  .m2{margin-bottom:15px;max-width:95%}
-  .m2 .who{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
-  .m2.u{margin-left:auto}.m2.u .bx{background:var(--surface2);border:1px solid var(--line2);border-radius:11px 11px 3px 11px;padding:11px 14px}
-  .m2.a .bx{background:var(--surface);border:1px solid var(--line);border-left:2px solid var(--coral);border-radius:3px 11px 11px 3px;padding:12px 15px;white-space:pre-wrap;line-height:1.56;word-break:break-word}
-  .m2.a .bx.thinking{font-family:var(--mono);font-size:12px;color:var(--muted2);border-left-color:var(--amber)}
-  .m2.a .bx.demo-out{border-left-color:var(--green)}
-  .composer{display:flex;gap:8px;padding:13px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
-  .composer input{flex:1;min-width:180px;background:var(--bg2);border:1px solid var(--line);color:var(--paper);border-radius:9px;padding:12px 14px;font-size:14px;outline:none;font-family:var(--sans);transition:border .15s,box-shadow .15s}
-  .composer input:focus{border-color:var(--coral)}
-  .btn{font-family:var(--sans);font-weight:600;font-size:13px;border:0;border-radius:9px;padding:10px 16px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:7px;justify-content:center;white-space:nowrap}
-  .btn.p{background:var(--coral);color:#1a0f0b} .btn.p:hover{background:var(--coral2)} .btn.p:disabled{opacity:.45;cursor:default}
-  .btn.s{background:rgba(84,207,133,.14);color:var(--green);border:1px solid rgba(84,207,133,.36)} .btn.s:hover{background:rgba(84,207,133,.22);border-color:var(--green)} .btn.s:disabled{opacity:.45;cursor:default}
-  .btn.g{background:transparent;color:var(--muted2);border:1px solid var(--line)} .btn.g:hover{border-color:var(--coral);color:var(--paper)} .btn.g:disabled{opacity:.45;cursor:default}
-  .btn.danger{background:rgba(255,95,86,.12);color:var(--flag);border:1px solid rgba(255,95,86,.35)} .btn.danger:hover{background:rgba(255,95,86,.22)}
-  .suggest{display:flex;gap:7px;flex-wrap:wrap;padding:0 16px 12px}
-  .chip{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--line2);border-radius:6px;padding:6px 10px;cursor:pointer;background:var(--bg2);transition:border .15s,color .15s}
-  .chip:hover{border-color:var(--coral);color:var(--paper)}
-  .chip.sm{font-size:10px;padding:4px 8px}
+  .brand-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-pill);
+    padding: 8px 18px 8px 10px;
+    box-shadow: var(--shadow-pill);
+  }
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--surface);
+    display: grid;
+    place-items: center;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .brand-mark::after {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--ember);
+    box-shadow: 0 0 0 3px rgba(225, 74, 40, 0.25);
+  }
+  .brand-text {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    line-height: 1;
+  }
+  .brand-text strong {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+  .brand-text em {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 20px;
+    color: var(--ember);
+    letter-spacing: 0;
+  }
 
-  /* right rail */
-  .block{margin-bottom:20px}
-  .block label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.8px;color:var(--muted);margin:9px 0 4px;text-transform:uppercase}
-  .block input{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--paper);border-radius:7px;padding:9px 11px;font-size:12px;outline:none;font-family:var(--mono);transition:border .15s,box-shadow .15s,background .15s}
-  .block input:focus{border-color:var(--coral)}
-  .block input.attn,.composer input.attn{border-color:var(--coral);box-shadow:0 0 0 2px rgba(234,122,94,.22)}
-  .block input.flagged-input{border-color:var(--flag);background:rgba(255,95,86,.06);box-shadow:0 0 0 2px rgba(255,95,86,.26)}
-  .block input.flagged-input:focus{border-color:var(--flag)}
-  .block .row{display:flex;gap:7px;margin-top:10px}.block .row .btn{flex:1;padding:9px 10px;font-size:12px}
-  .block .row .btn.sm{flex:0 0 74px}
-  .presets{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 4px}
-  .st{font-family:var(--mono);font-size:11px;margin-top:9px;line-height:1.45}
-  .st.ok{color:var(--green)}
-  .st.warn{color:var(--amber)}
-  .st.err{color:var(--coral)}
-  .st.err.flagged{border:1px solid rgba(255,95,86,.45);border-left:3px solid var(--flag);background:rgba(255,95,86,.09);border-radius:7px;padding:9px 11px;margin-top:10px;color:var(--paper)}
-  .st.err.flagged .flag-badge{display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:#1a0907;background:#ff6b57;padding:2px 7px;border-radius:4px;margin-bottom:5px}
-  .st.err.flagged .flag-msg{display:block;color:var(--paper);font-size:11px;line-height:1.45;word-break:break-word}
-  .psub{font-size:11px;color:var(--faint);margin:2px 0 10px;line-height:1.5}
-  .trace{max-height:230px;overflow:auto;font-family:var(--mono);font-size:11px;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);padding:10px}
-  .ev{padding:6px 8px;margin-bottom:5px;border-radius:6px;border-left:2px solid var(--line);background:rgba(0,0,0,.25);animation:si .2s}
-  @keyframes si{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:none}}
-  .ev.agent_start,.ev.agent_delegate{border-left-color:var(--amber)}.ev.agent_done{border-left-color:var(--green)}
-  .ev.run_start,.ev.run_done{border-left-color:var(--coral)}.ev.run_error,.ev.peer_denied{border-left-color:var(--flag);background:rgba(255,95,86,.08)}
-  .ev.router_verified{border-left-color:var(--green)}
-  .ev.router_flagged{border-left-color:var(--flag);background:rgba(255,95,86,.09)}
-  .ev.network_loaded,.ev.peer_loaded{border-left-color:var(--blue)}
-  .ev .ty{color:var(--faint)}.ev .k{color:var(--coral);font-weight:700}.ev .d{color:var(--muted)}
+  .nav-track {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--line);
+    border-radius: var(--r-pill);
+    padding: 5px;
+    box-shadow: var(--shadow-pill);
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .nav-tab {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: var(--r-pill);
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease;
+    white-space: nowrap;
+  }
+  .nav-tab:hover { color: var(--ink); background: var(--surface-soft); }
+  .nav-tab.active {
+    background: var(--ink);
+    color: var(--surface);
+  }
 
-  /* Live Spec Conformance Self-Test Panel */
-  .audit-section{border-top:1px solid var(--line);padding:24px 22px 28px;background:var(--bg2)}
-  .audit-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}
-  .audit-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .audit-title h2{font-family:var(--serif);font-weight:500;font-size:22px;margin:0;letter-spacing:-.4px}
-  .audit-summary{font-family:var(--mono);font-size:11.5px;padding:5px 11px;border-radius:6px;border:1px solid var(--line);color:var(--muted2);background:var(--surface)}
-  .audit-summary.pass{color:var(--green);border-color:rgba(84,207,133,.38);background:rgba(84,207,133,.08)}
-  .audit-summary.fail{color:var(--flag);border-color:rgba(255,95,86,.45);background:rgba(255,95,86,.09)}
-  .audit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
-  .chk{border:1px solid var(--line2);border-radius:9px;background:var(--surface);padding:11px 13px;display:flex;flex-direction:column;gap:5px}
-  .chk.pass{border-color:rgba(84,207,133,.28)}
-  .chk.fail{border-color:rgba(255,95,86,.45);background:rgba(255,95,86,.06)}
-  .chk-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-  .chk-name{font-weight:600;font-size:13px;color:var(--paper)}
-  .chk-badge{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.7px;padding:2px 7px;border-radius:4px;text-transform:uppercase}
-  .chk.pass .chk-badge{background:rgba(84,207,133,.16);color:var(--green)}
-  .chk.fail .chk-badge{background:rgba(255,95,86,.2);color:var(--flag)}
-  .chk-meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
-  .chk-meta a{color:var(--blue)} .chk-meta a:hover{color:var(--coral)}
-  .chk-detail{font-family:var(--mono);font-size:10.5px;color:var(--muted2);line-height:1.45;word-break:break-word}
+  .nav-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-pill);
+    padding: 8px 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-2);
+    box-shadow: var(--shadow-pill);
+    cursor: pointer;
+    transition: border-color 0.18s ease, transform 0.15s ease, color 0.18s ease;
+    white-space: nowrap;
+  }
+  .status-pill:hover { border-color: var(--ember); color: var(--ember); transform: translateY(-1px); }
+  .status-pill.pass {
+    background: var(--emerald-soft);
+    border-color: rgba(22, 138, 91, 0.25);
+    color: var(--emerald);
+  }
+  .status-pill.fail {
+    background: var(--danger-soft);
+    border-color: rgba(201, 53, 43, 0.28);
+    color: var(--danger);
+  }
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--emerald);
+    box-shadow: 0 0 0 3px rgba(22, 138, 91, 0.2);
+    animation: pulseDot 2s ease-in-out infinite;
+  }
+  @keyframes pulseDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(0.88); }
+  }
+  .preset-nav-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--ember);
+    color: #FFFFFF;
+    border: 0;
+    border-radius: var(--r-pill);
+    padding: 9px 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(225, 74, 40, 0.28);
+    transition: background 0.18s ease, transform 0.15s ease;
+    white-space: nowrap;
+  }
+  .preset-nav-pill:hover { background: var(--ember-deep); transform: translateY(-1px); }
+  .preset-nav-pill:disabled { opacity: 0.55; cursor: default; transform: none; }
 
-  /* Consent modal */
-  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:18px;z-index:1000}
-  .modal-backdrop.open{display:flex}
-  .modal{width:100%;max-width:500px;background:var(--surface);border:1px solid rgba(234,122,94,.42);border-radius:13px;padding:22px;box-shadow:0 24px 64px rgba(0,0,0,.6)}
-  .modal .mlab{font-family:var(--mono);font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--coral)}
-  .modal h3{font-family:var(--serif);font-weight:500;font-size:21px;margin:6px 0 10px}
-  .modal .mmeta{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:11px 13px;font-family:var(--mono);font-size:11px;color:var(--muted2);line-height:1.6;margin:10px 0 14px;word-break:break-all}
-  .modal .mmeta b{color:var(--paper)}
-  .modal .mrules{list-style:none;padding:0;margin:0 0 18px;font-size:12.5px;color:var(--muted2);display:grid;gap:6px}
-  .modal .mrules li::before{content:"\2713 ";color:var(--green);font-family:var(--mono)}
-  .modal .mactions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+  /* Editorial Hero & KPI Strip */
+  .hero {
+    margin-bottom: 16px;
+  }
+  .hero-top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .hero-copy {
+    max-width: 660px;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .eyebrow-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--ember);
+  }
+  .hero h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(2.1rem, 3.8vw, 3.1rem);
+    line-height: 1.02;
+    letter-spacing: -0.04em;
+    margin: 0;
+    color: var(--ink);
+  }
+  .hero h1 em {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    color: var(--ember);
+    font-size: 1.1em;
+    letter-spacing: -0.01em;
+  }
+  .hero-sub {
+    margin: 8px 0 0;
+    font-size: 14.5px;
+    color: var(--muted);
+    max-width: 600px;
+    line-height: 1.48;
+  }
+  .hero-sub strong { color: var(--ink); font-weight: 600; }
 
-  .preview-banner{display:none;align-items:center;justify-content:center;gap:10px;padding:8px 18px;border-bottom:1px solid rgba(226,173,85,.28);background:rgba(226,173,85,.08);font-family:var(--mono);font-size:11px;color:var(--muted2);flex-wrap:wrap}
-  .preview-banner.show{display:flex}
-  .preview-banner a{color:var(--amber);font-weight:600;border-bottom:1px dashed rgba(226,173,85,.5)}
-  .preview-banner a:hover{color:var(--coral);border-bottom-color:var(--coral)}
-  footer{border-top:1px solid var(--line);padding:18px 22px;display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .hero-endpoints {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    max-width: 560px;
+  }
+  .ep {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    padding: 6px 11px;
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .ep:hover { border-color: var(--ember); color: var(--ink); }
+  .ep .s { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
+  .ep.ok { color: var(--ink); border-color: rgba(22, 138, 91, 0.25); }
+  .ep.ok .s { background: var(--emerald); }
+  .ep.bad { color: var(--danger); border-color: rgba(201, 53, 43, 0.35); }
+  .ep.bad .s { background: var(--danger); }
+
+  /* Segmented Metric Capsules + 3 Unboxed Numerals */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 20px;
+  }
+  .capsule-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .cap-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .cap-label {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--muted);
+    padding-left: 6px;
+  }
+  .cap {
+    height: 40px;
+    border-radius: var(--r-pill);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 18px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .cap.ink {
+    background: var(--ink);
+    color: #FFFFFF;
+    box-shadow: 0 6px 16px rgba(25, 22, 20, 0.16);
+  }
+  .cap.ember {
+    background: var(--ember);
+    color: #FFFFFF;
+    box-shadow: 0 6px 16px rgba(225, 74, 40, 0.24);
+  }
+  .cap.white {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--shadow-pill);
+  }
+  .cap-hatched {
+    position: relative;
+    min-width: 230px;
+    height: 40px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--line-strong);
+    background: repeating-linear-gradient(
+      -45deg,
+      #FFFFFF 0px,
+      #FFFFFF 7px,
+      #EDE6DC 7px,
+      #EDE6DC 13px
+    );
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    box-shadow: var(--shadow-pill);
+  }
+  .cap-hatched-fill {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 4px;
+    width: 12%;
+    background: var(--ember);
+    border-radius: 0 4px 4px 0;
+    transition: width 0.3s ease;
+  }
+  .cap-hatched-text {
+    position: relative;
+    z-index: 2;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 10px;
+  }
+  .cap-hatched-text span:last-child {
+    color: var(--ember-deep);
+    font-weight: 600;
+  }
+
+  .open-numerals {
+    display: flex;
+    align-items: flex-end;
+    gap: 28px;
+    flex-wrap: wrap;
+  }
+  .open-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .open-stat-val {
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 600;
+    line-height: 0.96;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .open-stat-val.accent { color: var(--ember); }
+  .open-stat-lbl {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* 12-Column Asymmetric Architectural Bento Workbench */
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 18px;
+    align-items: start;
+  }
+
+  .col-left {
+    grid-column: span 5;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+  }
+  .col-right {
+    grid-column: span 7;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+  }
+  .span-6 { grid-column: span 6; min-width: 0; }
+  .span-12 { grid-column: span 12; min-width: 0; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-card);
+    padding: 22px;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .card-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .card-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    margin: 0;
+    color: var(--ink);
+  }
+  .card-badge {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: var(--r-pill);
+    background: var(--surface-soft);
+    color: var(--muted);
+    border: 1px solid var(--line);
+  }
+  .card-badge.ember {
+    background: var(--ember-soft);
+    color: var(--ember-deep);
+    border-color: rgba(225, 74, 40, 0.22);
+  }
+  .card-badge.emerald {
+    background: var(--emerald-soft);
+    color: var(--emerald);
+    border-color: rgba(22, 138, 91, 0.22);
+  }
+
+  /* Buttons */
+  .btn {
+    border: 0;
+    border-radius: var(--r-pill);
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    white-space: nowrap;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.14s ease, box-shadow 0.16s ease;
+  }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+  .btn.ember {
+    background: var(--ember);
+    color: #FFFFFF;
+    box-shadow: 0 6px 18px rgba(225, 74, 40, 0.25);
+  }
+  .btn.ember:hover:not(:disabled) { background: var(--ember-deep); transform: translateY(-1px); }
+  .btn.ink {
+    background: var(--ink);
+    color: #FFFFFF;
+    box-shadow: 0 6px 16px rgba(25, 22, 20, 0.16);
+  }
+  .btn.ink:hover:not(:disabled) { background: #2D2825; transform: translateY(-1px); }
+  .btn.emerald {
+    background: var(--emerald-soft);
+    color: var(--emerald);
+    border: 1px solid rgba(22, 138, 91, 0.28);
+  }
+  .btn.emerald:hover:not(:disabled) { background: #D5EFE3; border-color: var(--emerald); }
+  .btn.ghost {
+    background: var(--surface-soft);
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+  }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--ember); color: var(--ember-deep); background: var(--ember-soft); }
+  .btn.danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border: 1px solid rgba(201, 53, 43, 0.3);
+  }
+  .btn.danger:hover:not(:disabled) { background: #FBDAD8; }
+  .btn.sm { padding: 7px 13px; font-size: 12px; }
+
+  /* Mission Composer & Output Stream */
+  .composer-box {
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--r-inner);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .composer-box:focus-within {
+    border-color: var(--ember);
+    box-shadow: 0 0 0 3px rgba(225, 74, 40, 0.12);
+    background: #FFFFFF;
+  }
+  .composer-box input {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 4px 4px;
+    outline: none;
+  }
+  .composer-box input::placeholder { color: var(--faint); }
+  .composer-box input.attn { color: var(--ember-deep); }
+  .composer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-top: 6px;
+    border-top: 1px solid var(--line);
+  }
+  .composer-btns {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .composer-hint {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--faint);
+  }
+
+  .suggest {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .chip {
+    border: 1px solid var(--line);
+    background: var(--surface-soft);
+    color: var(--ink-2);
+    border-radius: var(--r-pill);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .chip:hover {
+    background: var(--ember-soft);
+    border-color: rgba(225, 74, 40, 0.35);
+    color: var(--ember-deep);
+  }
+  .chip.mono-chip {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 5px 11px;
+  }
+
+  .chat {
+    margin-top: 14px;
+    max-height: 290px;
+    min-height: 155px;
+    overflow-y: auto;
+    padding-right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+  }
+  .chat::-webkit-scrollbar, .trace::-webkit-scrollbar { width: 6px; }
+  .chat::-webkit-scrollbar-thumb { background: rgba(25, 22, 20, 0.14); border-radius: 6px; }
+  .trace::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 6px; }
+
+  .m2 { max-width: 100%; }
+  .m2 .who {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 4px;
+  }
+  .m2.u .bx {
+    background: var(--ink);
+    color: #FAF8F5;
+    border-radius: 14px 14px 4px 14px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+  .m2.a .bx {
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ember);
+    border-radius: 4px 14px 14px 14px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.58;
+    color: var(--ink);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .m2.a .bx.thinking {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--amber);
+    border-left-color: var(--amber);
+    background: var(--amber-soft);
+  }
+  .m2.a .bx.demo-out {
+    border-left-color: var(--emerald);
+    background: #F4FBF8;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.55;
+  }
+
+  /* Agent Roster Bento Card */
+  .roster-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .agent {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+    gap: 11px;
+    padding: 11px 13px;
+    border-radius: var(--r-inner);
+    border: 1px solid var(--line);
+    background: var(--surface-soft);
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.18s ease;
+  }
+  .agent.front {
+    background: var(--ember-soft);
+    border-color: rgba(225, 74, 40, 0.28);
+  }
+  .agent.done {
+    background: var(--emerald-soft);
+    border-color: rgba(22, 138, 91, 0.28);
+  }
+  .agent.lit, .agent.running {
+    background: #FFFFFF;
+    border-color: var(--ember);
+    box-shadow: 0 0 0 3px rgba(225, 74, 40, 0.14);
+  }
+  .agent-idx {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    display: grid;
+    place-items: center;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--ink);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .agent.front .agent-idx { background: var(--ember); color: #FFFFFF; border-color: var(--ember); }
+  .agent.done .agent-idx { background: var(--emerald); color: #FFFFFF; border-color: var(--emerald); }
+  .agent.lit .agent-idx, .agent.running .agent-idx { background: var(--ink); color: #FFFFFF; border-color: var(--ink); }
+  .agent .nm {
+    font-family: var(--font-display);
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .agent .nm .led {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--faint);
+  }
+  .agent.front .nm .led { background: var(--ember); }
+  .agent.done .nm .led { background: var(--emerald); }
+  .agent.lit .nm .led, .agent.running .nm .led {
+    background: var(--ember);
+    box-shadow: 0 0 0 4px rgba(225, 74, 40, 0.25);
+    animation: pulseDot 0.9s infinite;
+  }
+  .agent .ds {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+  .agent .rl {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .agent.front .rl { color: var(--ember-deep); border-color: rgba(225, 74, 40, 0.24); }
+  .agent.done .rl { color: var(--emerald); border-color: rgba(22, 138, 91, 0.25); }
+
+  .bounds-strip {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .bound-pill {
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 8px 10px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .bound-pill b {
+    display: block;
+    color: var(--ink);
+    font-size: 13px;
+    margin-top: 2px;
+  }
+
+  /* THE ONE High-Contrast Deep Obsidian Execution Stage */
+  .stage-card {
+    background: var(--obsidian);
+    color: #F6F2EC;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: var(--r-card);
+    padding: 22px;
+    box-shadow: var(--shadow-stage);
+    position: relative;
+    overflow: hidden;
+  }
+  .stage-card::before {
+    content: "";
+    position: absolute;
+    top: -120px;
+    right: -100px;
+    width: 340px;
+    height: 340px;
+    background: radial-gradient(circle, rgba(225, 74, 40, 0.16), transparent 65%);
+    pointer-events: none;
+  }
+  .stage-head {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .stage-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #A0958B;
+  }
+  .stage-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    margin: 2px 0 0;
+    color: #FFFFFF;
+  }
+  .stage-title em {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+    color: #FF7857;
+    font-size: 1.12em;
+  }
+  .stage-pills {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+  .stage-chip {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 5px 11px;
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #D7CFC6;
+  }
+  .stage-chip.emerald {
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.3);
+    color: var(--emerald-bright);
+  }
+
+  /* 5-Step Pipeline Stepper inside Obsidian Stage */
+  .pipeline {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .stage {
+    background: var(--obsidian-2);
+    border: 1px solid var(--line-dark);
+    border-radius: 14px;
+    padding: 10px 11px;
+    transition: all 0.22s ease;
+    position: relative;
+  }
+  .stage .sn {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #877D74;
+    letter-spacing: 0.08em;
+    display: flex;
+    justify-content: space-between;
+  }
+  .stage .st2 {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #E8E1D9;
+    margin-top: 4px;
+  }
+  .stage .sa {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 11.5px;
+    color: #9A8F85;
+    margin-top: 2px;
+  }
+  .stage.done {
+    border-color: rgba(52, 211, 153, 0.42);
+    background: linear-gradient(180deg, rgba(52, 211, 153, 0.11), var(--obsidian-2));
+  }
+  .stage.done .st2 { color: var(--emerald-bright); }
+  .stage.done .sn::after { content: "OK"; color: var(--emerald-bright); }
+  .stage.lit, .stage.running {
+    border-color: var(--ember);
+    background: linear-gradient(180deg, rgba(225, 74, 40, 0.22), var(--obsidian-2));
+    box-shadow: 0 0 22px rgba(225, 74, 40, 0.22);
+  }
+  .stage.lit .st2, .stage.running .st2 { color: #FF8E72; }
+  .stage.lit .sa, .stage.running .sa { color: #FFFFFF; }
+
+  /* Live SVG DAG Canvas */
+  .graph-svg-wrap {
+    position: relative;
+    z-index: 2;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(225, 74, 40, 0.10), transparent 58%),
+      #0D0C0B;
+    border: 1px solid var(--line-dark);
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .graph-svg-wrap svg {
+    width: 100%;
+    height: 164px;
+    display: block;
+  }
+
+  /* 4 Live Finite-Bound Telemetry Gauges */
+  .gauges {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .gauge {
+    background: var(--obsidian-2);
+    border: 1px solid var(--line-dark);
+    border-radius: 13px;
+    padding: 9px 11px;
+    font-family: var(--font-mono);
+  }
+  .gauge .gl {
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8A8077;
+    display: flex;
+    justify-content: space-between;
+  }
+  .gauge .gv {
+    font-size: 13px;
+    font-weight: 700;
+    color: #FFFFFF;
+    margin-top: 3px;
+  }
+  .gauge .gt {
+    height: 4px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.09);
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .gauge .gf {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--ember), var(--emerald-bright));
+    border-radius: 99px;
+    transition: width 0.25s ease;
+  }
+
+  /* Live SSE / Execution Event Trace inside Obsidian Stage */
+  .trace-wrap {
+    position: relative;
+    z-index: 2;
+    background: #0D0C0B;
+    border: 1px solid var(--line-dark);
+    border-radius: 16px;
+    padding: 12px;
+  }
+  .trace-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .trace-head .tl {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #9A8F85;
+  }
+  .trace-head .tc {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: #FF8E72;
+  }
+  .trace {
+    max-height: 185px;
+    min-height: 112px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .ev {
+    padding: 6px 9px;
+    border-radius: 8px;
+    border-left: 2px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.03);
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    animation: slideEv 0.18s ease;
+  }
+  @keyframes slideEv {
+    from { opacity: 0; transform: translateX(-4px); }
+    to { opacity: 1; transform: none; }
+  }
+  .ev.agent_start, .ev.agent_delegate { border-left-color: #F5B041; }
+  .ev.agent_done, .ev.router_verified { border-left-color: var(--emerald-bright); }
+  .ev.run_start, .ev.run_done { border-left-color: var(--ember); }
+  .ev.run_error, .ev.peer_denied, .ev.router_flagged {
+    border-left-color: #FF6B5B;
+    background: rgba(255, 107, 91, 0.10);
+  }
+  .ev.network_loaded, .ev.peer_loaded { border-left-color: #60A5FA; }
+  .ev .ty { color: #8A8077; font-size: 10px; }
+  .ev .k { color: #FF8E72; font-weight: 600; }
+  .ev .d { color: #D5CEC6; }
+
+  /* Form Controls (Router & Peer Loader Ceramic Cards) */
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+  .field-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .text-input {
+    width: 100%;
+    background: var(--surface-soft);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+  }
+  .text-input:focus {
+    border-color: var(--ember);
+    background: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(225, 74, 40, 0.12);
+  }
+  .text-input.attn {
+    border-color: var(--ember);
+    box-shadow: 0 0 0 3px rgba(225, 74, 40, 0.18);
+  }
+  .text-input.flagged-input {
+    border-color: var(--danger);
+    background: var(--danger-soft);
+    box-shadow: 0 0 0 3px rgba(201, 53, 43, 0.18);
+  }
+  .psub {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 0 0 12px;
+    line-height: 1.5;
+  }
+  .presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .btn-row .btn { flex: 1; }
+  .btn-row .btn.fixed-sm { flex: 0 0 auto; }
+
+  .st {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    margin-top: 10px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+  .st.ok { color: var(--emerald); font-weight: 500; }
+  .st.warn { color: var(--amber); font-weight: 500; }
+  .st.err { color: var(--danger); font-weight: 500; }
+  .st.err.flagged {
+    border: 1px solid rgba(201, 53, 43, 0.35);
+    border-left: 3px solid var(--danger);
+    background: var(--danger-soft);
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: var(--ink);
+  }
+  .st.err.flagged .flag-badge {
+    display: inline-block;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--danger);
+    color: #FFFFFF;
+    padding: 2px 7px;
+    border-radius: 99px;
+    margin-bottom: 4px;
+  }
+  .st.err.flagged .flag-msg {
+    display: block;
+    font-size: 11px;
+    color: var(--ink-2);
+    word-break: break-word;
+  }
+
+  /* Validator & Audit Bento Cards */
+  .val-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 12px 0 10px;
+  }
+  .val-bar .text-input {
+    flex: 1;
+    min-width: 240px;
+    border-radius: var(--r-pill);
+    padding: 11px 16px;
+  }
+  .val-res-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .val-res-head[hidden] { display: none; }
+  .val-score {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: var(--r-pill);
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    color: var(--ink);
+  }
+  .val-score.pass { background: var(--emerald-soft); border-color: rgba(22, 138, 91, 0.3); color: var(--emerald); }
+  .val-score.warn { background: var(--amber-soft); border-color: rgba(196, 122, 18, 0.3); color: var(--amber); }
+  .val-score.fail { background: var(--danger-soft); border-color: rgba(201, 53, 43, 0.3); color: var(--danger); }
+
+  .audit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .chk {
+    border: 1px solid var(--line);
+    border-radius: var(--r-inner);
+    background: var(--surface-soft);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .chk.pass {
+    background: #FFFFFF;
+    border-color: rgba(22, 138, 91, 0.24);
+  }
+  .chk.fail {
+    background: var(--danger-soft);
+    border-color: rgba(201, 53, 43, 0.32);
+  }
+  .chk-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .chk-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .chk-badge {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border-radius: var(--r-pill);
+    text-transform: uppercase;
+  }
+  .chk.pass .chk-badge { background: var(--emerald-soft); color: var(--emerald); }
+  .chk.fail .chk-badge { background: rgba(201, 53, 43, 0.16); color: var(--danger); }
+  .chk-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .chk-meta a { color: var(--ember-deep); font-weight: 600; }
+  .chk-detail {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-2);
+    line-height: 1.42;
+    word-break: break-word;
+  }
+
+  /* Consent Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(25, 22, 20, 0.56);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    z-index: 1000;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    width: 100%;
+    max-width: 500px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-card);
+    padding: 24px;
+    box-shadow: 0 28px 70px rgba(25, 22, 20, 0.28);
+  }
+  .modal .mlab {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ember);
+  }
+  .modal h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.025em;
+    margin: 6px 0 10px;
+  }
+  .modal .mmeta {
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 11px 13px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-2);
+    line-height: 1.6;
+    margin: 10px 0 14px;
+    word-break: break-all;
+  }
+  .modal .mrules {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 18px;
+    font-size: 12.5px;
+    color: var(--muted);
+    display: grid;
+    gap: 6px;
+  }
+  .modal .mrules li::before {
+    content: "OK ";
+    color: var(--emerald);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 10.5px;
+  }
+  .modal .mactions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  /* Footer */
+  .site-footer {
+    margin-top: 26px;
+    padding: 18px 22px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid var(--line);
+    border-radius: var(--r-pill);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .footer-links {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .footer-links a:hover { color: var(--ember); }
+
+  /* Section filter emphasis */
+  .section-dim { opacity: 0.45; transition: opacity 0.2s ease; }
+  .section-focus { box-shadow: 0 0 0 2px var(--ember), var(--shadow-card); }
+
+  @media (max-width: 1120px) {
+    .col-left, .col-right, .span-6 { grid-column: span 12; }
+    .kpi-strip { grid-template-columns: 1fr; }
+    .open-numerals { gap: 22px; }
+  }
+  @media (max-width: 720px) {
+    .shell { padding: 14px 14px 40px; }
+    .topnav { position: static; gap: 10px; }
+    .nav-track { width: 100%; justify-content: flex-start; }
+    .pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gauges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cap-hatched { min-width: 0; width: 100%; }
+    .cap-group.hatched-wrap { width: 100%; }
+    .open-stat-val { font-size: 32px; }
+    .card, .stage-card { padding: 16px; border-radius: 20px; }
+    .site-footer { border-radius: 20px; }
+    .bounds-strip { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -221,175 +1431,327 @@
     <span>Viewing an immutable deployment preview URL.</span>
     <a href="https://aura-agentic-web.vercel.app">Open live canonical app (aura-agentic-web.vercel.app) &rarr;</a>
   </div>
-  <div class="topbar">
-    <div class="mark"><div class="sq">A</div><b>AURA</b></div>
-    <span class="bc">agentic-web / <span id="netname">aura-core</span></span>
-    <div class="right">
-      <button class="tag linkbtn" id="topauditpill" type="button" title="Jump to Live Spec Conformance Self-Test">Spec 0.2: checking...</button>
-      <a class="tag linkbtn" href="/validator.html" title="Open Standalone Community Conformance Validator">Validator Tool &nearr;</a>
-      <span class="tag">Neuro SAN &middot; MVP 0.2</span>
-      <span class="dot" id="netpill">network live</span>
-    </div>
-  </div>
 
-  <div class="band">
-    <div class="idx">WORLDWIDE AGENTIC WEB / MVP PROFILE 0.2 / PORTABLE BROWSER NETWORK</div>
-    <h1>My whole brain, running <em>in your browser.</em></h1>
-    <p class="lede">AURA is a portable 5-agent Neuro SAN network published as open CORS JSON data. An <b>orchestrator</b> delegates to a <b>researcher</b>, <b>builder</b>, <b>verifier</b>, and <b>critic</b> directly inside your browser with finite bounds and deny-by-default privacy. Try the instant zero-key spec demo, inspect live protocol conformance, plug in any BYOK endpoint, or load a peer agentic site with explicit consent.</p>
-    <div class="hero-actions">
-      <button class="btn p" id="runspecdemo" type="button">Run Live Spec Demo (No Key Required)</button>
-      <button class="btn g" id="scrollselftest" type="button">Live Spec Self-Test (10/10)</button>
-      <button class="btn g" id="scrollvalidator" type="button">External Peer Validator</button>
-      <span class="hero-note" id="herodemonote">Full 5-agent SVG delegation trace + finite bounds in ~3s</span>
-    </div>
-    <div class="metarow">
-      <div class="m"><div class="v">5</div><div class="k">agents</div></div>
-      <div class="m"><div class="v">0</div><div class="k">agent servers</div></div>
-      <div class="m"><div class="v">MVP 0.2</div><div class="k">spec profile</div></div>
-      <div class="m"><div class="v">BYOK + Demo</div><div class="k">pluggable inference</div></div>
-      <div class="endpoint-pills" id="endpointpills">
-        <a class="ep" data-ep="root_manifest" href="/agent-manifest.json" target="_blank"><span class="s"></span>/agent-manifest.json</a>
-        <a class="ep" data-ep="well_known_manifest" href="/.well-known/agent-manifest.json" target="_blank"><span class="s"></span>/.well-known/agent-manifest.json</a>
-        <a class="ep" data-ep="network_def" href="/aura-core.json" target="_blank"><span class="s"></span>/aura-core.json</a>
-        <a class="ep" data-ep="runtime_esm" href="/runtime.js" target="_blank"><span class="s"></span>/runtime.js</a>
-      </div>
-    </div>
-  </div>
+  <div class="shell">
+    <!-- Floating Ceramic Pill Navbar -->
+    <header class="topnav">
+      <a class="brand-pill" href="/" aria-label="AURA Agentic Web Home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-text"><strong>AURA</strong><em>Agentic Web</em></span>
+      </a>
 
-  <div class="grid">
-    <!-- left: roster -->
-    <div class="col">
-      <div class="sechead"><span class="lab">Agent roster</span><span class="n" id="rcount">5 nodes</span></div>
-      <div id="roster"></div>
-      <div class="bounds-card" id="boundscard">
-        <div class="bt">Enforced Runtime Bounds</div>
-        <div>Depth: <b id="b-depth">4</b> &middot; Invocations: <b id="b-inv">40</b></div>
-        <div>Remote calls: <b id="b-rem">40</b> &middot; Timeout: <b id="b-time">900s</b></div>
-        <div>Private ctx (sly_data): <b>deny_by_default</b></div>
-      </div>
-    </div>
+      <nav class="nav-track" aria-label="Primary sections">
+        <button class="nav-tab active" type="button" data-nav="studio">Studio</button>
+        <button class="nav-tab" type="button" data-nav="trace">Live Trace</button>
+        <button class="nav-tab" type="button" data-nav="router">BYOK &amp; Peers</button>
+        <button class="nav-tab" type="button" data-nav="validator">Validator</button>
+        <button class="nav-tab" type="button" data-nav="audit">Spec Audit</button>
+      </nav>
 
-    <!-- center: console -->
-    <div class="col chatcol">
-      <div class="sechead" style="padding:16px 18px 0">
-        <span class="lab">Console</span>
-        <span class="n">plan &middot; ground &middot; build &middot; verify &middot; stress</span>
+      <div class="nav-right">
+        <button class="status-pill" id="topauditpill" type="button" title="Jump to Live Spec Conformance Self-Test">Spec 0.2: checking...</button>
+        <span class="status-pill" id="netpillwrap"><span class="live-dot"></span><span id="netpill">aura-core live</span></span>
+        <button class="preset-nav-pill" id="runspecdemo" type="button">Run Spec Demo</button>
       </div>
-      <div class="pipeline" id="pipeline">
-        <div class="stage" data-ag="orchestrator"><span class="sn">01</span><span class="st2">PLAN</span><span class="sa">orchestrator</span></div>
-        <div class="flow">&rarr;</div>
-        <div class="stage" data-ag="researcher"><span class="sn">02</span><span class="st2">GROUND</span><span class="sa">researcher</span></div>
-        <div class="flow">&rarr;</div>
-        <div class="stage" data-ag="builder"><span class="sn">03</span><span class="st2">BUILD</span><span class="sa">builder</span></div>
-        <div class="flow">&rarr;</div>
-        <div class="stage" data-ag="verifier"><span class="sn">04</span><span class="st2">VERIFY</span><span class="sa">verifier</span></div>
-        <div class="flow">&rarr;</div>
-        <div class="stage" data-ag="critic"><span class="sn">05</span><span class="st2">STRESS</span><span class="sa">critic</span></div>
-      </div>
-      <div class="graph-strip" aria-label="Live SVG Agent Delegation Trace Graph and Finite-Bound Gauges">
-        <div class="graph-top">
-          <span class="lab">Live SVG Delegation Graph</span>
-          <span class="mono" style="font-size:10.5px;color:var(--green)" id="graphstatus">aura-core &middot; sly_data: 0 leaked</span>
+    </header>
+
+    <!-- Editorial Hero & Segmented KPI Strip -->
+    <section class="hero" id="section-studio">
+      <div class="hero-top">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="eyebrow-dot"></span>Worldwide Agentic Web &middot; Neuro SAN &middot; <span id="netname">aura-core</span></div>
+          <h1>Five agents, <em>zero servers.</em></h1>
+          <p class="hero-sub">A portable <strong>Neuro SAN browser network</strong> published as open CORS JSON. Orchestrator delegates to researcher, builder, verifier, and critic inside your browser with finite bounds and deny-by-default privacy.</p>
         </div>
-        <div class="graph-svg-wrap">
-          <svg id="delegation-svg" viewBox="0 0 740 152" role="img" aria-label="Live SVG Agent Delegation Graph"></svg>
-        </div>
-        <div class="gauges">
-          <div class="gauge"><div class="gl"><span>Depth</span><span>MAX</span></div><div class="gv" id="gv-depth">0 / 4</div><div class="gt"><div class="gf" id="gf-depth"></div></div></div>
-          <div class="gauge"><div class="gl"><span>Invocations</span><span>CAP</span></div><div class="gv" id="gv-inv">0 / 40</div><div class="gt"><div class="gf" id="gf-inv"></div></div></div>
-          <div class="gauge"><div class="gl"><span>Remote Calls</span><span>CAP</span></div><div class="gv" id="gv-rem">0 / 40</div><div class="gt"><div class="gf" id="gf-rem"></div></div></div>
-          <div class="gauge"><div class="gl"><span>Elapsed</span><span>BUDGET</span></div><div class="gv" id="gv-time">0.0s / 900s</div><div class="gt"><div class="gf" id="gf-time"></div></div></div>
+
+        <div class="hero-endpoints" id="endpointpills">
+          <a class="ep" data-ep="root_manifest" href="/agent-manifest.json" target="_blank"><span class="s"></span>/agent-manifest.json</a>
+          <a class="ep" data-ep="well_known_manifest" href="/.well-known/agent-manifest.json" target="_blank"><span class="s"></span>/.well-known/agent-manifest.json</a>
+          <a class="ep" data-ep="network_def" href="/aura-core.json" target="_blank"><span class="s"></span>/aura-core.json</a>
+          <a class="ep" data-ep="runtime_esm" href="/runtime.js" target="_blank"><span class="s"></span>/runtime.js</a>
         </div>
       </div>
-      <div class="chat" id="chat">
-        <div class="m2 a"><div class="who">AURA</div><div class="bx">Welcome to AURA Agentic Web (Worldwide Agentic Web MVP Profile 0.2). Click "Run Live Spec Demo (No Key Required)" to watch the full 5-agent bounded delegation loop immediately, or activate your own OpenAI / Gemini / Groq / OpenRouter BYOK key in the right rail for live LLM inference.</div></div>
-      </div>
-      <div class="suggest" id="suggest"></div>
-      <div class="composer">
-        <input id="q" placeholder="Ask the AURA network (or click Spec Demo with zero key)..." autocomplete="off" />
-        <button class="btn p" id="send" type="button">Run</button>
-        <button class="btn s" id="demosend" type="button" title="Run the loaded Neuro SAN graph locally with zero API key">Spec Demo</button>
-      </div>
-    </div>
 
-    <!-- right: router + peer + trace -->
-    <div class="col">
-      <div class="block">
-        <div class="sechead"><span class="lab">Inference router (BYOK)</span><span class="n">sessionStorage only</span></div>
-        <p class="psub">Browser calls your router directly (or falls back to stateless same-origin /api/relay on CORS block). Key never enters manifests, traces, or peer requests.</p>
+      <div class="kpi-strip">
+        <div class="capsule-row">
+          <div class="cap-group">
+            <span class="cap-label">Topology</span>
+            <span class="cap ink" id="rcount-pill">5 Agents</span>
+          </div>
+          <div class="cap-group">
+            <span class="cap-label">Spec Profile</span>
+            <span class="cap ember">MVP 0.2</span>
+          </div>
+          <div class="cap-group hatched-wrap">
+            <span class="cap-label">Bounded Execution Budget</span>
+            <div class="cap-hatched" aria-label="Bounded execution invocation budget">
+              <div class="cap-hatched-fill" id="cap-budget-fill"></div>
+              <div class="cap-hatched-text">
+                <span id="cap-budget-pct">Ready</span>
+                <span id="cap-budget-calls">0 / 40 calls</span>
+              </div>
+            </div>
+          </div>
+          <div class="cap-group">
+            <span class="cap-label">Private Context</span>
+            <span class="cap white">0 Leaked</span>
+          </div>
+        </div>
+
+        <div class="open-numerals" aria-label="Key architecture metrics">
+          <div class="open-stat">
+            <span class="open-stat-val accent" id="kpi-audit-val">10/10</span>
+            <span class="open-stat-lbl">Spec Checks</span>
+          </div>
+          <div class="open-stat">
+            <span class="open-stat-val">0</span>
+            <span class="open-stat-lbl">Agent Servers</span>
+          </div>
+          <div class="open-stat">
+            <span class="open-stat-val" id="kpi-inv-val">40</span>
+            <span class="open-stat-lbl">Invocation Cap</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Asymmetric 12-Column Studio Bento Grid -->
+    <main class="bento-grid">
+      <!-- Left 5 Columns: Mission Composer + Agent Roster -->
+      <div class="col-left">
+        <section class="card" aria-label="Mission Composer and Output">
+          <div class="card-head">
+            <div class="card-title-group">
+              <span class="card-eyebrow">Mission Workbench</span>
+              <h2 class="card-title">Dispatch to AURA Network</h2>
+            </div>
+            <span class="card-badge ember" id="mode-badge">Zero-Key Demo Ready</span>
+          </div>
+
+          <div class="composer-box">
+            <input id="q" placeholder="Enter a mission prompt or select a preset below..." autocomplete="off" />
+            <div class="composer-actions">
+              <span class="composer-hint" id="herodemonote">5-agent bounded trace in ~2s</span>
+              <div class="composer-btns">
+                <button class="btn ember sm" id="demosend" type="button" title="Run the loaded Neuro SAN graph locally with zero API key">Spec Demo</button>
+                <button class="btn ink sm" id="send" type="button">Run Live</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="suggest" id="suggest" aria-label="Preset missions"></div>
+
+          <div class="chat" id="chat" aria-live="polite">
+            <div class="m2 a">
+              <div class="who">AURA Orchestrator</div>
+              <div class="bx">Portable Neuro SAN runtime active (MVP Profile 0.2). Click "Spec Demo" or any mission pill above to watch the full 5-agent bounded delegation loop immediately, or activate your own OpenAI, Gemini, Groq, or OpenRouter BYOK endpoint below.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" aria-label="Agent Topology Roster">
+          <div class="card-head">
+            <div class="card-title-group">
+              <span class="card-eyebrow">Neuro SAN Graph</span>
+              <h2 class="card-title">Agent Roster</h2>
+            </div>
+            <span class="card-badge" id="rcount">5 nodes</span>
+          </div>
+
+          <div class="roster-grid" id="roster"></div>
+
+          <div class="bounds-strip" id="boundscard">
+            <div class="bound-pill">Max Depth<b id="b-depth">4</b></div>
+            <div class="bound-pill">Invocations<b id="b-inv">40</b></div>
+            <div class="bound-pill">Timeout<b id="b-time">900s</b></div>
+          </div>
+          <span id="b-rem" hidden>40</span>
+        </section>
+      </div>
+
+      <!-- Right 7 Columns: THE ONE High-Contrast Deep Obsidian Execution Stage -->
+      <div class="col-right" id="section-trace">
+        <section class="stage-card" aria-label="Live Multi-Agent Orchestration Stage">
+          <div class="stage-head">
+            <div>
+              <div class="stage-eyebrow">Live Multi-Agent Execution Stage</div>
+              <h2 class="stage-title">Delegation <em>Topology &amp; Trace</em></h2>
+            </div>
+            <div class="stage-pills">
+              <span class="stage-chip emerald" id="graphstatus">aura-core &middot; 5 nodes &middot; sly_data: 0 leaked</span>
+              <a class="stage-chip" href="/validator.html" target="_blank">Standalone Validator &nearr;</a>
+            </div>
+          </div>
+
+          <div class="pipeline" id="pipeline">
+            <div class="stage" data-ag="orchestrator"><span class="sn">01</span><span class="st2">PLAN</span><span class="sa">orchestrator</span></div>
+            <div class="stage" data-ag="researcher"><span class="sn">02</span><span class="st2">GROUND</span><span class="sa">researcher</span></div>
+            <div class="stage" data-ag="builder"><span class="sn">03</span><span class="st2">BUILD</span><span class="sa">builder</span></div>
+            <div class="stage" data-ag="verifier"><span class="sn">04</span><span class="st2">VERIFY</span><span class="sa">verifier</span></div>
+            <div class="stage" data-ag="critic"><span class="sn">05</span><span class="st2">STRESS</span><span class="sa">critic</span></div>
+          </div>
+
+          <div class="graph-svg-wrap" aria-label="Live SVG Agent Delegation Trace Graph">
+            <svg id="delegation-svg" viewBox="0 0 740 178" role="img" aria-label="Live SVG Agent Delegation Graph"></svg>
+          </div>
+
+          <div class="gauges" aria-label="Finite runtime bound gauges">
+            <div class="gauge">
+              <div class="gl"><span>Depth</span><span>MAX</span></div>
+              <div class="gv" id="gv-depth">0 / 4</div>
+              <div class="gt"><div class="gf" id="gf-depth"></div></div>
+            </div>
+            <div class="gauge">
+              <div class="gl"><span>Invocations</span><span>CAP</span></div>
+              <div class="gv" id="gv-inv">0 / 40</div>
+              <div class="gt"><div class="gf" id="gf-inv"></div></div>
+            </div>
+            <div class="gauge">
+              <div class="gl"><span>Remote Calls</span><span>CAP</span></div>
+              <div class="gv" id="gv-rem">0 / 40</div>
+              <div class="gt"><div class="gf" id="gf-rem"></div></div>
+            </div>
+            <div class="gauge">
+              <div class="gl"><span>Elapsed</span><span>BUDGET</span></div>
+              <div class="gv" id="gv-time">0.0s / 900s</div>
+              <div class="gt"><div class="gf" id="gf-time"></div></div>
+            </div>
+          </div>
+
+          <div class="trace-wrap">
+            <div class="trace-head">
+              <span class="tl">Streaming Event Trace (SSE &amp; Delegation Log)</span>
+              <span class="tc" id="tracecount">0 events</span>
+            </div>
+            <div class="trace" id="trace"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Row 2: BYOK Inference Router + Peer Agent Site Loader (Ceramic White Bento Pair) -->
+      <section class="card span-6" id="section-router" aria-label="BYOK Inference Router">
+        <div class="card-head">
+          <div class="card-title-group">
+            <span class="card-eyebrow">Pluggable Inference</span>
+            <h2 class="card-title">BYOK Router Configuration</h2>
+          </div>
+          <span class="card-badge">sessionStorage only</span>
+        </div>
+        <p class="psub">Browser calls your OpenAI-compatible router directly, or falls back to stateless same-origin <code>/api/relay</code> on CORS block. Your key never enters manifests, traces, or peer requests.</p>
+
         <div class="presets" id="presets"></div>
-        <label for="base">Base URL (OpenAI-compatible)</label>
-        <input id="base" placeholder="https://api.openai.com/v1" autocomplete="url" />
-        <label for="key">API key</label>
-        <input id="key" type="password" placeholder="sk-... / AIza... / gsk_..." autocomplete="off" />
-        <label for="model">Model</label>
-        <input id="model" placeholder="gpt-4o-mini" autocomplete="off" />
-        <div class="row"><button class="btn p" id="save" type="button">Activate</button><button class="btn g sm" id="clearrouter" type="button">Clear</button></div>
-        <div class="st" id="rstatus" role="status" aria-live="polite"></div>
-      </div>
-      <div class="block">
-        <div class="sechead"><span class="lab">Peer agent site</span><span class="n">consent + fail-closed</span></div>
-        <p class="psub">Final path segment is the exact network name. Runtime requires explicit consent before contacting any origin.</p>
-        <input id="peer" placeholder="https://aura-agentic-web.vercel.app/agents/aura-core" />
-        <div class="presets" style="margin-top:7px">
-          <button class="chip sm" id="fillselfpeer" type="button">Try live self-peer (aura-core)</button>
-          <button class="chip sm" id="fillbadpeer" type="button">Test fail-closed mismatch</button>
+
+        <div class="field-grid">
+          <div>
+            <label class="field-label" for="base">Base URL (OpenAI-compatible)</label>
+            <input class="text-input" id="base" placeholder="https://api.openai.com/v1" autocomplete="url" />
+          </div>
+          <div>
+            <label class="field-label" for="key">API Key</label>
+            <input class="text-input" id="key" type="password" placeholder="sk-... / AIza... / gsk_..." autocomplete="off" />
+          </div>
+          <div>
+            <label class="field-label" for="model">Model ID</label>
+            <input class="text-input" id="model" placeholder="gpt-4o-mini" autocomplete="off" />
+          </div>
         </div>
-        <div class="row"><button class="btn p" id="loadpeer" type="button">Load peer</button><button class="btn g" id="loadself" type="button">Reload AURA</button></div>
+
+        <div class="btn-row">
+          <button class="btn ember" id="save" type="button">Activate Router</button>
+          <button class="btn ghost fixed-sm" id="clearrouter" type="button">Clear</button>
+        </div>
+        <div class="st" id="rstatus" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="card span-6" id="section-peer" aria-label="Peer Agent Site Loader">
+        <div class="card-head">
+          <div class="card-title-group">
+            <span class="card-eyebrow">Cross-Origin Federation</span>
+            <h2 class="card-title">Load Peer Agent Site</h2>
+          </div>
+          <span class="card-badge emerald">Consent + Fail-Closed</span>
+        </div>
+        <p class="psub">Final path segment is the exact network name. The runtime prompts for explicit per-origin consent before contacting any HTTPS peer and enforces zero credential forwarding.</p>
+
+        <div>
+          <label class="field-label" for="peer">Peer Network URL</label>
+          <input class="text-input" id="peer" placeholder="https://aura-agentic-web.vercel.app/agents/aura-core" />
+        </div>
+
+        <div class="presets" style="margin-top: 10px;">
+          <button class="chip mono-chip" id="fillselfpeer" type="button">Try live self-peer (aura-core)</button>
+          <button class="chip mono-chip" id="fillbadpeer" type="button">Test fail-closed mismatch</button>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn ink" id="loadpeer" type="button">Load Peer Network</button>
+          <button class="btn ghost fixed-sm" id="loadself" type="button">Reload AURA</button>
+        </div>
         <div class="st" id="pstatus" role="status" aria-live="polite"></div>
+      </section>
+
+      <!-- Row 3: External Peer-Site Conformance Validator -->
+      <section class="card span-12" id="validator" aria-label="External Peer-Site Conformance Validator">
+        <div class="card-head">
+          <div class="card-title-group">
+            <span class="card-eyebrow">Community Federation Debugger</span>
+            <h2 class="card-title">External Peer-Site Conformance Validator &amp; Runner</h2>
+          </div>
+          <a class="btn ghost sm" href="/validator.html" target="_blank">Open Standalone Validator &nearr;</a>
+        </div>
+        <p class="psub" style="max-width: 860px;">Enter any Worldwide Agentic Web URL (site origin, peer subpath like <code>/agents/aura-core</code>, or direct manifest URL) to audit it live against all 10 MVP Profile 0.2 rules (100-point rubric) and federate its Neuro SAN graph into the execution stage above.</p>
+
+        <div class="val-bar">
+          <input class="text-input" id="extUrl" placeholder="https://aura-agentic-web.vercel.app/agents/aura-core" autocomplete="url" />
+          <button class="btn ember" id="runExtAudit" type="button">Validate Peer Site</button>
+          <button class="btn emerald" id="federateExt" type="button" disabled>Federate &amp; Run in Stage</button>
+          <button class="btn ghost" id="downloadExtReport" type="button" disabled>Download JSON</button>
+        </div>
+
+        <div class="presets">
+          <span class="card-eyebrow">Presets:</span>
+          <button class="chip mono-chip" data-ext-url="https://aura-agentic-web.vercel.app" type="button">AURA Root Canonical</button>
+          <button class="chip mono-chip" data-ext-url="https://aura-agentic-web.vercel.app/agents/aura-core" type="button">AURA Peer Subpath (/agents/aura-core)</button>
+          <button class="chip mono-chip" data-ext-url="https://aura-agentic-web.vercel.app/agents/nonexistent-peer" type="button">Fail-Closed Mismatch Test</button>
+        </div>
+
+        <div class="val-res-head" id="extResHead" hidden>
+          <span class="val-score" id="extScore">--</span>
+          <span id="extSummary" style="color: var(--muted);"></span>
+        </div>
+        <div class="audit-grid" id="extGrid"></div>
+      </section>
+
+      <!-- Row 4: Live Spec Conformance Self-Test Panel -->
+      <section class="card span-12" id="auditpanel" aria-label="Live Spec Conformance Self-Test">
+        <div class="card-head">
+          <div class="card-title-group">
+            <span class="card-eyebrow">Live Protocol Verification</span>
+            <h2 class="card-title">Worldwide Agentic Web MVP Profile 0.2 Self-Test</h2>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <span class="card-badge" id="auditsummary">Running live checks...</span>
+            <button class="btn ghost sm" id="rerunaudit" type="button">Re-run Live Self-Test</button>
+          </div>
+        </div>
+        <div class="audit-grid" id="auditgrid"></div>
+      </section>
+    </main>
+
+    <!-- Editorial Footer -->
+    <footer class="site-footer">
+      <span>AURA AGENTIC WEB &middot; OPEN SOURCE MIT &middot; NEURO SAN MVP PROFILE 0.2</span>
+      <div class="footer-links">
+        <a href="/validator.html" target="_blank">/validator.html</a>
+        <a href="/agent-manifest.json" target="_blank">/agent-manifest.json</a>
+        <a href="/.well-known/agent-manifest.json" target="_blank">/.well-known/agent-manifest.json</a>
+        <a href="/aura-core.json" target="_blank">/aura-core.json</a>
+        <a href="/links.json" target="_blank">/links.json</a>
+        <a href="/runtime.js" target="_blank">/runtime.js</a>
+        <a href="https://github.com/cognizant-ai-labs/agentic-web/blob/main/docs/worldwide_agentic_web_mvp_spec.md" target="_blank">MVP Profile 0.2 Spec</a>
       </div>
-      <div class="block">
-        <div class="sechead"><span class="lab">Live trace</span><span class="n" id="tracecount">0 events</span></div>
-        <div class="trace" id="trace"></div>
-      </div>
-    </div>
+    </footer>
   </div>
-
-  <!-- Live External Peer-Site Conformance Validator & Federation Runner -->
-  <section class="val-section" id="validator" aria-label="External Peer-Site Conformance Validator">
-    <div class="audit-head">
-      <div class="audit-title">
-        <span class="lab">Community Federation Debugger</span>
-        <h2>External Peer-Site Conformance Validator &amp; Federation Runner</h2>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a class="btn g" href="/validator.html" target="_blank">Open Standalone Validator &nearr;</a>
-      </div>
-    </div>
-    <p class="psub" style="font-size:12.5px;color:var(--muted2);max-width:860px;margin:0">Enter ANY Worldwide Agentic Web URL (site origin, peer subpath like <code>/agents/aura-core</code>, or direct manifest URL) to audit it live against all 10 MVP Profile 0.2 rules (100-point rubric) and federate its Neuro SAN graph directly into the console above.</p>
-    <div class="val-bar">
-      <input id="extUrl" placeholder="https://aura-agentic-web.vercel.app/agents/aura-core" autocomplete="url" />
-      <button class="btn p" id="runExtAudit" type="button">Validate Peer Site</button>
-      <button class="btn s" id="federateExt" type="button" disabled>Federate &amp; Run in Console</button>
-      <button class="btn g" id="downloadExtReport" type="button" disabled>Download JSON</button>
-    </div>
-    <div class="presets" style="margin-bottom:10px">
-      <span class="lab">Presets:</span>
-      <button class="chip sm" data-ext-url="https://aura-agentic-web.vercel.app" type="button">AURA Root Canonical</button>
-      <button class="chip sm" data-ext-url="https://aura-agentic-web.vercel.app/agents/aura-core" type="button">AURA Peer Subpath (/agents/aura-core)</button>
-      <button class="chip sm" data-ext-url="https://aura-agentic-web.vercel.app/agents/nonexistent-peer" type="button">Fail-Closed Mismatch Test</button>
-    </div>
-    <div class="val-res-head" id="extResHead" hidden>
-      <span class="val-score" id="extScore">--</span>
-      <span id="extSummary" style="color:var(--muted2)"></span>
-    </div>
-    <div class="audit-grid" id="extGrid"></div>
-  </section>
-
-  <!-- Live Spec Conformance Self-Test Panel -->
-  <section class="audit-section" id="auditpanel" aria-label="Live Spec Conformance Self-Test">
-    <div class="audit-head">
-      <div class="audit-title">
-        <span class="lab">Live Protocol Audit</span>
-        <h2>Worldwide Agentic Web MVP Profile 0.2 Self-Test</h2>
-        <span class="audit-summary" id="auditsummary">Running live checks...</span>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="btn g" id="rerunaudit" type="button">Re-run Live Self-Test</button>
-      </div>
-    </div>
-    <div class="audit-grid" id="auditgrid"></div>
-  </section>
 
   <!-- Explicit Peer Origin Consent Modal -->
   <div class="modal-backdrop" id="consentmodal" role="dialog" aria-modal="true" aria-labelledby="consenttitle" hidden>
@@ -398,29 +1760,18 @@
       <h3 id="consenttitle">Allow peer agent network contact?</h3>
       <div class="mmeta" id="consentmeta"></div>
       <ul class="mrules">
-        <li>Peer agents execute locally inside YOUR browser runtime.</li>
-        <li>Peer inherits YOUR active inference router and finite execution bounds.</li>
-        <li>Your BYOK API key is NEVER sent to the peer site.</li>
+        <li>Peer agents execute locally inside your browser runtime.</li>
+        <li>Peer inherits your active inference router and finite execution bounds.</li>
+        <li>Your BYOK API key is never sent to the peer site.</li>
         <li>Private context (sly_data) stays deny-by-default across origins.</li>
         <li>Exact-match network name check: missing names fail closed.</li>
       </ul>
       <div class="mactions">
         <button class="btn danger" id="consentdeny" type="button">Deny Contact (Fail Closed)</button>
-        <button class="btn p" id="consentallow" type="button">Approve &amp; Load Peer</button>
+        <button class="btn ember" id="consentallow" type="button">Approve &amp; Load Peer</button>
       </div>
     </div>
   </div>
-
-  <footer>
-    <span>OPEN SOURCE / MIT</span>
-    <a href="/validator.html" target="_blank">/validator.html</a>
-    <a href="/agent-manifest.json" target="_blank">/agent-manifest.json</a>
-    <a href="/.well-known/agent-manifest.json" target="_blank">/.well-known/agent-manifest.json</a>
-    <a href="/aura-core.json" target="_blank">/aura-core.json</a>
-    <a href="/links.json" target="_blank">/links.json</a>
-    <a href="/runtime.js" target="_blank">/runtime.js</a>
-    <a href="https://github.com/cognizant-ai-labs/agentic-web/blob/main/docs/worldwide_agentic_web_mvp_spec.md" target="_blank">conforms / MVP Profile 0.2</a>
-  </footer>
 
 <script type="module">
 import {
@@ -470,16 +1821,39 @@ function esc(s) {
     .replace(/"/g, "&quot;");
 }
 
+// Navigation pill tabs
+const NAV_TARGETS = {
+  studio: "section-studio",
+  trace: "section-trace",
+  router: "section-router",
+  validator: "validator",
+  audit: "auditpanel"
+};
+document.querySelectorAll(".nav-tab[data-nav]").forEach((tab) => {
+  tab.onclick = () => {
+    document.querySelectorAll(".nav-tab[data-nav]").forEach((t) => t.classList.remove("active"));
+    tab.classList.add("active");
+    const targetId = NAV_TARGETS[tab.getAttribute("data-nav")];
+    const targetEl = targetId ? $(targetId) : null;
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+});
+
 function renderRoster(list) {
   roster.innerHTML = "";
-  list.forEach((a) => {
+  list.forEach((a, idx) => {
     const d = document.createElement("div");
     d.className = "agent" + (a.front ? " front" : "");
     d.id = "ag-" + a.name;
     d.innerHTML =
-      '<div class="nm"><span class="led"></span>' + esc(a.name) + '</div>' +
-      '<div class="rl">' + esc(a.role) + '</div>' +
-      '<div class="ds">' + esc(a.ds) + '</div>';
+      '<div class="agent-idx">0' + (idx + 1) + '</div>' +
+      '<div>' +
+        '<div class="nm"><span class="led"></span>' + esc(a.name) + '</div>' +
+        '<div class="ds">' + esc(a.ds) + '</div>' +
+      '</div>' +
+      '<div class="rl">' + esc(a.role) + '</div>';
     roster.appendChild(d);
   });
 }
@@ -489,7 +1863,7 @@ renderRoster(DEFAULT_AGENTS);
 PROVIDER_PRESETS.forEach((p) => {
   const b = document.createElement("button");
   b.type = "button";
-  b.className = "chip sm";
+  b.className = "chip mono-chip";
   b.textContent = p.label;
   b.title = p.baseUrl + " (" + p.model + ")";
   b.onclick = () => {
@@ -498,7 +1872,7 @@ PROVIDER_PRESETS.forEach((p) => {
     clearAttn();
     $("key").focus();
     $("rstatus").className = "st warn";
-    $("rstatus").textContent = p.label + " preset loaded — paste your API key and click Activate.";
+    $("rstatus").textContent = p.label + " preset loaded. Paste your API key and click Activate Router.";
   };
   $("presets").appendChild(b);
 });
@@ -520,7 +1894,7 @@ PROVIDER_PRESETS.forEach((p) => {
   }
 })();
 
-// Explicit in-page Consent Modal (replaces native window.confirm)
+// Explicit in-page Consent Modal
 let pendingConsentResolve = null;
 function openConsentModal({ origin, networkName, manifestUrl, purpose }) {
   return new Promise((resolve) => {
@@ -559,7 +1933,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// Live execution state for real-time pipeline, SVG delegation graph & finite-bound gauges
+// Live execution state
 const activeStack = [];
 const completedAgents = new Set();
 let currentGraph = null;
@@ -589,6 +1963,7 @@ function updateBoundGauges({ depth = 0, invocations = 0, remoteCalls = 0, elapse
   const maxR = lim.max_remote_calls || 40;
   const maxT = lim.max_elapsed_seconds || 900;
   const elSec = (elapsedMs || 0) / 1000;
+
   $("gv-depth").textContent = depth + " / " + maxD;
   $("gv-inv").textContent = invocations + " / " + maxI;
   $("gv-rem").textContent = remoteCalls + " / " + maxR;
@@ -597,30 +1972,41 @@ function updateBoundGauges({ depth = 0, invocations = 0, remoteCalls = 0, elapse
   $("gf-inv").style.width = Math.min(100, (invocations / maxI) * 100) + "%";
   $("gf-rem").style.width = Math.min(100, (remoteCalls / maxR) * 100) + "%";
   $("gf-time").style.width = Math.min(100, (elSec / maxT) * 100) + "%";
+
+  const pct = Math.min(100, Math.round((invocations / maxI) * 100));
+  $("cap-budget-fill").style.width = Math.max(12, pct) + "%";
+  $("cap-budget-pct").textContent = invocations > 0 ? pct + "% used" : "Ready";
+  $("cap-budget-calls").textContent = invocations + " / " + maxI + " calls";
+  $("kpi-inv-val").textContent = String(maxI);
 }
 
 function renderDelegationSvg() {
   const svg = $("delegation-svg");
   if (!svg) return;
   if (!currentGraph || !currentGraph.nodes || !currentGraph.nodes.length) {
-    svg.innerHTML = '<text x="370" y="80" text-anchor="middle" fill="#817B71" font-family="JetBrains Mono,monospace" font-size="12">Loading Neuro SAN topology...</text>';
+    svg.innerHTML = '<text x="370" y="92" text-anchor="middle" fill="#8A8077" font-family="JetBrains Mono,monospace" font-size="12">Loading Neuro SAN topology...</text>';
     return;
   }
   const front = currentGraph.nodes.find((n) => n.isFront) || currentGraph.nodes[0];
   const others = currentGraph.nodes.filter((n) => n.id !== front.id);
   const pos = new Map();
-  pos.set(front.id, { x: 370, y: 31 });
+  pos.set(front.id, { x: 370, y: 38 });
   const span = Math.max(1, others.length);
   others.forEach((n, i) => {
-    const x = span === 1 ? 370 : 95 + (550 * i) / (span - 1);
-    pos.set(n.id, { x, y: 118 });
+    const x = span === 1 ? 370 : 96 + (548 * i) / (span - 1);
+    pos.set(n.id, { x, y: 136 });
   });
 
   const runningNames = new Set(activeStack.map((item) => item.agent));
   let out =
-    '<defs><marker id="dg-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#5a544b"/></marker>' +
-    '<marker id="dg-arr-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#EA7A5E"/></marker>' +
-    '<marker id="dg-arr-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#54CF85"/></marker></defs>';
+    '<defs>' +
+      '<marker id="dg-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#5A534C"/></marker>' +
+      '<marker id="dg-arr-ember" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#E14A28"/></marker>' +
+      '<marker id="dg-arr-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#34D399"/></marker>' +
+    '</defs>';
+
+  // Subtle architectural grid lines
+  out += '<line x1="28" y1="88" x2="712" y2="88" stroke="rgba(255,255,255,0.04)" stroke-dasharray="4 6" />';
 
   for (const e of currentGraph.edges) {
     const a = pos.get(e.from), b = pos.get(e.to);
@@ -628,15 +2014,15 @@ function renderDelegationSvg() {
     const key = e.from + "->" + e.to;
     const count = graphHops.get(key) || 0;
     const isHot = activeEdgeKey === key;
-    const stroke = isHot ? "#54CF85" : count > 0 ? "#EA7A5E" : "rgba(236,233,227,0.18)";
-    const marker = isHot ? "dg-arr-hot" : count > 0 ? "dg-arr-coral" : "dg-arr";
+    const stroke = isHot ? "#34D399" : count > 0 ? "#E14A28" : "rgba(255,255,255,0.16)";
+    const marker = isHot ? "dg-arr-hot" : count > 0 ? "dg-arr-ember" : "dg-arr";
     const sw = isHot ? 2.8 : count > 0 ? 2.1 : 1.3;
     const midX = (a.x + b.x) / 2;
-    const midY = (a.y + b.y) / 2 - 8;
-    out += '<path d="M ' + a.x + ' ' + (a.y + 17) + ' Q ' + midX + ' ' + midY + ' ' + b.x + ' ' + (b.y - 18) + '" fill="none" stroke="' + stroke + '" stroke-width="' + sw + '" marker-end="url(#' + marker + ')"/>';
+    const midY = (a.y + b.y) / 2 - 10;
+    out += '<path d="M ' + a.x + ' ' + (a.y + 19) + ' Q ' + midX + ' ' + midY + ' ' + b.x + ' ' + (b.y - 20) + '" fill="none" stroke="' + stroke + '" stroke-width="' + sw + '" marker-end="url(#' + marker + ')"/>';
     if (count > 0) {
-      out += '<rect x="' + (midX - 13) + '" y="' + (midY - 8) + '" width="26" height="15" rx="4" fill="#15140f" stroke="' + stroke + '" stroke-width="1"/>';
-      out += '<text x="' + midX + '" y="' + (midY + 3) + '" text-anchor="middle" fill="#ECE9E3" font-family="JetBrains Mono,monospace" font-size="9.5">x' + count + '</text>';
+      out += '<rect x="' + (midX - 15) + '" y="' + (midY - 9) + '" width="30" height="17" rx="8.5" fill="#141312" stroke="' + stroke + '" stroke-width="1.2"/>';
+      out += '<text x="' + midX + '" y="' + (midY + 3) + '" text-anchor="middle" fill="#FAF8F5" font-family="JetBrains Mono,monospace" font-size="9.5" font-weight="600">x' + count + '</text>';
     }
   }
 
@@ -645,10 +2031,25 @@ function renderDelegationSvg() {
     if (!p) continue;
     const isHot = runningNames.has(n.id);
     const isDone = completedAgents.has(n.id);
-    const fill = isHot ? "rgba(84,207,133,0.18)" : isDone ? "rgba(84,207,133,0.08)" : n.isFront ? "rgba(234,122,94,0.13)" : "#15140f";
-    const stroke = isHot ? "#54CF85" : isDone ? "rgba(84,207,133,0.72)" : n.isFront ? "#EA7A5E" : "rgba(236,233,227,0.22)";
-    out += '<g><rect x="' + (p.x - 62) + '" y="' + (p.y - 17) + '" width="124" height="34" rx="8" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (isHot ? 2.4 : 1.4) + '"/>';
-    out += '<text x="' + p.x + '" y="' + (p.y + 4) + '" text-anchor="middle" fill="#ECE9E3" font-family="JetBrains Mono,monospace" font-size="11.5" font-weight="600">' + esc(n.id) + '</text></g>';
+    const fill = isHot
+      ? "rgba(225,74,40,0.24)"
+      : isDone
+      ? "rgba(52,211,153,0.14)"
+      : n.isFront
+      ? "rgba(225,74,40,0.14)"
+      : "#1A1816";
+    const stroke = isHot
+      ? "#FF7857"
+      : isDone
+      ? "#34D399"
+      : n.isFront
+      ? "#E14A28"
+      : "rgba(255,255,255,0.20)";
+    out += '<g>';
+    out += '<rect x="' + (p.x - 66) + '" y="' + (p.y - 19) + '" width="132" height="38" rx="19" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (isHot ? 2.4 : 1.5) + '"/>';
+    out += '<circle cx="' + (p.x - 46) + '" cy="' + p.y + '" r="3.5" fill="' + (isHot ? "#FF7857" : isDone ? "#34D399" : n.isFront ? "#E14A28" : "#6F655E") + '"/>';
+    out += '<text x="' + (p.x + 4) + '" y="' + (p.y + 4) + '" text-anchor="middle" fill="#FAF8F5" font-family="JetBrains Mono,monospace" font-size="11.5" font-weight="600">' + esc(n.id) + '</text>';
+    out += '</g>';
   }
   svg.innerHTML = out;
 }
@@ -691,7 +2092,7 @@ function updateProgressBubble() {
   if (!activeBubble) return;
   const elapsedSec = runStartedAt ? Math.max(0, Math.floor((Date.now() - runStartedAt) / 1000)) : 0;
   if (activeStack.length > 0) {
-    const chain = activeStack.map((x) => x.agent).join(" \u2192 ");
+    const chain = activeStack.map((x) => x.agent).join(" -> ");
     const top = activeStack[activeStack.length - 1];
     if (streamProgress && (!streamProgress.agent || streamProgress.agent === top.agent)) {
       const parts = [];
@@ -705,7 +2106,7 @@ function updateProgressBubble() {
         parts.push("delegating " + streamProgress.toolCalls + (streamProgress.toolCalls === 1 ? " tool" : " tools"));
       }
       if (parts.length > 0) {
-        activeBubble.textContent = "Running " + chain + " (" + parts.join(" \u00b7 ") + ")... " + elapsedSec + "s";
+        activeBubble.textContent = "Running " + chain + " (" + parts.join(" · ") + ")... " + elapsedSec + "s";
         return;
       }
     }
@@ -721,7 +2122,7 @@ function updateProgressBubble() {
 function addMsg(role, text, thinking = false, demoOut = false) {
   const d = document.createElement("div");
   d.className = "m2 " + (role === "user" ? "u" : "a");
-  d.innerHTML = '<div class="who">' + (role === "user" ? "You" : "AURA") + '</div><div class="bx"></div>';
+  d.innerHTML = '<div class="who">' + (role === "user" ? "Mission Prompt" : "AURA Orchestrator") + '</div><div class="bx"></div>';
   const bx = d.querySelector(".bx");
   if (thinking) bx.classList.add("thinking");
   if (demoOut) bx.classList.add("demo-out");
@@ -744,6 +2145,8 @@ function addEv(ev) {
   }
   if (ev.type === "network_loaded" && Array.isArray(ev.agents) && rt) {
     $("netname").textContent = ev.name || "network";
+    $("rcount").textContent = ev.agents.length + " nodes";
+    $("rcount-pill").textContent = ev.agents.length + " Agents";
     if (ev.limits) {
       $("b-depth").textContent = String(ev.limits.max_composition_depth);
       $("b-inv").textContent = String(ev.limits.max_agent_invocations);
@@ -893,8 +2296,9 @@ rt = new AuraRuntime({ onEvent: addEv });
 async function loadAura() {
   try {
     const r = await rt.loadNetworkFromUrl("./aura-core.json");
-    $("netpill").textContent = "network live";
+    $("netpill").textContent = "aura-core live";
     $("rcount").textContent = r.agents.length + " nodes";
+    $("rcount-pill").textContent = r.agents.length + " Agents";
     $("pstatus").className = "st ok";
     $("pstatus").textContent = "AURA loaded from /aura-core.json (" + r.agents.length + " agents).";
   } catch (e) {
@@ -909,19 +2313,21 @@ async function executeConformanceAudit() {
   const btn = $("rerunaudit");
   btn.disabled = true;
   btn.textContent = "Running 10 checks...";
-  $("auditsummary").className = "audit-summary";
-  $("auditsummary").textContent = "Fetching live manifests, headers & runtime guards...";
+  $("auditsummary").className = "card-badge";
+  $("auditsummary").textContent = "Checking manifests & headers...";
 
   try {
     const report = await runSpecConformanceAudit({ origin: location.origin });
     const summaryText = report.allPassed
-      ? report.passed + "/" + report.total + " PASS · MVP Profile 0.2 Conforming"
+      ? report.passed + "/" + report.total + " PASS · MVP 0.2 Conforming"
       : report.passed + "/" + report.total + " PASS · Action Needed";
-    $("auditsummary").className = "audit-summary " + (report.allPassed ? "pass" : "fail");
+    $("auditsummary").className = "card-badge " + (report.allPassed ? "emerald" : "ember");
     $("auditsummary").textContent = summaryText;
 
+    $("kpi-audit-val").textContent = report.passed + "/" + report.total;
+
     const topPill = $("topauditpill");
-    topPill.className = "tag linkbtn " + (report.allPassed ? "pass" : "fail");
+    topPill.className = "status-pill " + (report.allPassed ? "pass" : "fail");
     topPill.textContent = "Spec 0.2: " + report.passed + "/" + report.total + (report.allPassed ? " PASS" : " FAIL");
 
     const grid = $("auditgrid");
@@ -951,7 +2357,7 @@ async function executeConformanceAudit() {
       grid.appendChild(card);
     });
   } catch (err) {
-    $("auditsummary").className = "audit-summary fail";
+    $("auditsummary").className = "card-badge ember";
     $("auditsummary").textContent = "Audit error: " + (err && err.message ? err.message : String(err));
   } finally {
     btn.disabled = false;
@@ -962,13 +2368,6 @@ async function executeConformanceAudit() {
 $("rerunaudit").onclick = executeConformanceAudit;
 $("topauditpill").onclick = () => {
   $("auditpanel").scrollIntoView({ behavior: "smooth", block: "start" });
-};
-$("scrollselftest").onclick = () => {
-  $("auditpanel").scrollIntoView({ behavior: "smooth", block: "start" });
-  executeConformanceAudit();
-};
-$("scrollvalidator").onclick = () => {
-  $("validator").scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
 // External Peer-Site Conformance Validator & Federation Runner
@@ -1038,9 +2437,10 @@ $("federateExt").onclick = () => {
   if (!lastExtReport || !lastExtReport.networkDef) return;
   const loaded = rt.loadNetwork(lastExtReport.networkDef);
   $("rcount").textContent = loaded.agents.length + " nodes";
+  $("rcount-pill").textContent = loaded.agents.length + " Agents";
   $("pstatus").className = "st ok";
   $("pstatus").textContent = "Federated via Validator: " + loaded.name + " (" + loaded.agents.length + " agents).";
-  $("pipeline").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  $("section-trace").scrollIntoView({ behavior: "smooth", block: "start" });
   runSpecDemoUi("Federated peer execution check on " + loaded.name);
 };
 $("downloadExtReport").onclick = () => {
@@ -1157,7 +2557,9 @@ async function initRouter() {
       }
       clearAttn();
       $("rstatus").className = "st ok";
-      $("rstatus").textContent = "Verified & active - " + verifiedModel;
+      $("rstatus").textContent = "Verified & active: " + verifiedModel;
+      $("mode-badge").textContent = "BYOK: " + verifiedModel;
+      $("mode-badge").className = "card-badge emerald";
     } else {
       clearStorage();
       if (demoInfo.available) {
@@ -1209,10 +2611,12 @@ async function initRouter() {
   if (!rt.hasActiveRouter() && demoInfo.available) {
     rt.setRouter({ demo: true, model: demoInfo.model || "default" });
     $("rstatus").className = "st ok";
-    $("rstatus").textContent = "Built-in live router ready (or enter BYOK / click Spec Demo)";
+    $("rstatus").textContent = "Built-in live router ready (or enter BYOK / click Spec Demo).";
+    $("mode-badge").textContent = "Live Relay Ready";
+    $("mode-badge").className = "card-badge emerald";
   } else if (!rt.hasActiveRouter()) {
     $("rstatus").className = "st";
-    $("rstatus").textContent = "No BYOK key set. Click 'Run Live Spec Demo (No Key Required)' or activate a key above.";
+    $("rstatus").textContent = "No BYOK key set. Click Spec Demo for an instant trace or activate a key above.";
   }
 }
 
@@ -1225,7 +2629,8 @@ executeConformanceAudit();
   "Research and plan a 3-day launch",
   "Write a Python retry decorator, critique it"
 ].forEach((s) => {
-  const c = document.createElement("div");
+  const c = document.createElement("button");
+  c.type = "button";
   c.className = "chip";
   c.textContent = s;
   c.onclick = () => {
@@ -1288,12 +2693,14 @@ async function activateByok() {
     }
     clearAttn();
     $("rstatus").className = "st ok";
-    $("rstatus").textContent = "Verified & active - " + verifiedModel;
+    $("rstatus").textContent = "Verified & active: " + verifiedModel;
+    $("mode-badge").textContent = "BYOK: " + verifiedModel;
+    $("mode-badge").className = "card-badge emerald";
   } finally {
     if (myEpoch === routerConfigEpoch) {
       isVerifyingRouter = false;
       $("save").disabled = false;
-      $("save").textContent = "Activate";
+      $("save").textContent = "Activate Router";
     }
   }
 }
@@ -1312,7 +2719,7 @@ $("clearrouter").onclick = async () => {
   routerConfigEpoch++;
   isVerifyingRouter = false;
   $("save").disabled = false;
-  $("save").textContent = "Activate";
+  $("save").textContent = "Activate Router";
   clearStorage();
   clearAttn();
   $("base").value = "";
@@ -1322,11 +2729,15 @@ $("clearrouter").onclick = async () => {
   if (demoInfo.available) {
     rt.setRouter({ demo: true, model: demoInfo.model || "default" });
     $("rstatus").className = "st ok";
-    $("rstatus").textContent = "Built-in live router ready (or enter BYOK / click Spec Demo)";
+    $("rstatus").textContent = "Built-in live router ready (or enter BYOK / click Spec Demo).";
+    $("mode-badge").textContent = "Live Relay Ready";
+    $("mode-badge").className = "card-badge emerald";
   } else {
     rt.setRouter(null);
     $("rstatus").className = "st";
     $("rstatus").textContent = "Saved BYOK cleared. Spec Demo works with no key.";
+    $("mode-badge").textContent = "Zero-Key Demo Ready";
+    $("mode-badge").className = "card-badge ember";
   }
 };
 
@@ -1356,8 +2767,9 @@ $("loadpeer").onclick = async () => {
     const r = await rt.loadPeerNetwork(url, (req) => openConsentModal(req));
     if (r) {
       $("rcount").textContent = r.agents.length + " nodes";
+      $("rcount-pill").textContent = r.agents.length + " Agents";
       $("pstatus").className = "st ok";
-      $("pstatus").textContent = "Peer loaded (consent approved) - " + r.name + " / front: " + r.front + " (" + r.agents.length + " agents).";
+      $("pstatus").textContent = "Peer loaded (consent approved): " + r.name + " / front: " + r.front + " (" + r.agents.length + " agents).";
     } else {
       $("pstatus").className = "st warn";
       $("pstatus").textContent = "Peer contact denied by user (fail closed; 0 bytes fetched from peer).";
@@ -1373,7 +2785,7 @@ function setBusy(busy, label = "Running...") {
   $("send").disabled = busy;
   $("demosend").disabled = busy;
   $("runspecdemo").disabled = busy;
-  $("send").textContent = busy ? label : "Run";
+  $("send").textContent = busy ? label : "Run Live";
 }
 
 async function runSpecDemoUi(customPrompt) {
@@ -1384,14 +2796,13 @@ async function runSpecDemoUi(customPrompt) {
   $("q").value = "";
   setBusy(true, "Demo...");
 
-  $("pipeline").scrollIntoView({ behavior: "smooth", block: "nearest" });
   addMsg("user", "[Spec Demo · No Key] " + promptText);
   runStartedAt = Date.now();
   activeBubble = addMsg("aura", "Running local MVP Profile 0.2 protocol trace... 0s", true);
   progressTimer = setInterval(updateProgressBubble, 250);
 
   try {
-    const ans = await rt.runSpecDemo(promptText, { delayMs: 260 });
+    const ans = await rt.runSpecDemo(promptText, { delayMs: 220 });
     activeBubble.classList.remove("thinking");
     activeBubble.classList.add("demo-out");
     activeBubble.textContent = ans;
@@ -1426,9 +2837,8 @@ async function run() {
         return;
       }
     }
-    // Zero-friction fallback guidance: offer instant Spec Demo or BYOK
     $("rstatus").className = "st warn";
-    $("rstatus").textContent = "No BYOK key active — click 'Spec Demo' for an instant zero-key trace, or activate your API key above.";
+    $("rstatus").textContent = "No BYOK key active. Click Spec Demo for an instant zero-key trace, or activate your API key above.";
     const baseEmpty = !baseVal;
     const keyEmpty = !keyVal;
     if (baseEmpty) $("base").classList.add("attn");
@@ -1441,7 +2851,7 @@ async function run() {
   const q = $("q").value.trim();
   if (!q) {
     $("q").classList.add("attn");
-    $("q").placeholder = "Enter a prompt or pick a suggestion chip above...";
+    $("q").placeholder = "Enter a prompt or pick a preset mission below...";
     $("q").focus();
     return;
   }
