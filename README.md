@@ -1,6 +1,13 @@
 # AURA Agentic Web
 
+[![Devpost Submission](https://img.shields.io/badge/Devpost-Open%20Agentic%20Web%20Challenge-003E54?style=for-the-badge&logo=devpost&logoColor=white)](https://devpost.com/software/aura-agentic-web)
+[![Live Agentic Site](https://img.shields.io/badge/Live%20Site-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://aura-agentic-web.vercel.app)
+[![Free Validator](https://img.shields.io/badge/MVP%200.2%20Validator-Test%20Your%20Site-2ea44f?style=for-the-badge)](https://aura-agentic-web.vercel.app/validator.html)
+[![Demo Video](https://img.shields.io/badge/Demo%20Video-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=8C0mwlOgszw)
+
+**Devpost project:** [https://devpost.com/software/aura-agentic-web](https://devpost.com/software/aura-agentic-web)  
 **Live deployment:** [https://aura-agentic-web.vercel.app](https://aura-agentic-web.vercel.app)  
+**Standalone MVP 0.2 Conformance Validator:** [https://aura-agentic-web.vercel.app/validator.html](https://aura-agentic-web.vercel.app/validator.html)  
 **Spec conformance:** [Worldwide Agentic Web MVP Profile 0.2](https://github.com/cognizant-ai-labs/agentic-web/blob/main/docs/worldwide_agentic_web_mvp_spec.md)  
 **License:** MIT
 
