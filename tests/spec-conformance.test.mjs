@@ -14,7 +14,9 @@ import {
   normalizeChatUrl,
   validateRouterInputs,
   classifyRouterError,
-  runSpecConformanceAudit
+  runSpecConformanceAudit,
+  buildAgentGraph,
+  auditExternalAgenticSite
 } from "../public/runtime.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -390,7 +392,54 @@ test("runSpecConformanceAudit passes 10/10 against local static server with verc
     );
     assert.equal(report.passed, 10);
     assert.equal(report.total, 10);
+
+    // Also verify auditExternalAgenticSite scores 100/100 on root AND /agents/aura-core,
+    // and fails closed on /agents/nonexistent-peer!
+    const extRoot = await auditExternalAgenticSite(`http://127.0.0.1:${port}`);
+    assert.equal(extRoot.score, 100, "Root audit should score 100/100");
+    assert.equal(extRoot.grade, "CONFORMING (A+)");
+    assert.equal(extRoot.agentGraph.nodes.length, 5);
+    assert.equal(extRoot.agentGraph.edges.length, 4);
+
+    const extPeer = await auditExternalAgenticSite(`http://127.0.0.1:${port}/agents/aura-core`);
+    assert.equal(extPeer.score, 100, "Peer subpath audit should score 100/100");
+    assert.equal(extPeer.resolvedNetworkName, "aura-core");
+    assert.ok(extPeer.networkDef);
+
+    const extBad = await auditExternalAgenticSite(`http://127.0.0.1:${port}/agents/nonexistent-peer`);
+    assert.equal(extBad.networkDef, null, "Mismatched peer name must fail closed");
+    assert.ok(extBad.score < 100);
+    const exactCheck = extBad.checks.find((c) => c.id === "exact_match_resolution");
+    assert.equal(exactCheck.pass, false);
+
+    // Denied consent aborts cleanly with 0 network calls
+    const extDenied = await auditExternalAgenticSite(`http://127.0.0.1:${port}/agents/aura-core`, {
+      confirmOriginFn: async () => false
+    });
+    assert.equal(extDenied.aborted, true);
+    assert.equal(extDenied.grade, "DENIED");
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
+});
+
+test("buildAgentGraph & standalone community validator.html are valid and wired to runtime.js", () => {
+  const core = readJson("public/aura-core.json");
+  const g = buildAgentGraph(core);
+  assert.equal(g.front, "orchestrator");
+  assert.equal(g.nodes.length, 5);
+  assert.deepEqual(
+    g.edges.map((e) => `${e.from}->${e.to}`),
+    [
+      "orchestrator->researcher",
+      "orchestrator->builder",
+      "orchestrator->verifier",
+      "orchestrator->critic"
+    ]
+  );
+
+  const valHtml = fs.readFileSync(path.join(PUBLIC_DIR, "validator.html"), "utf-8");
+  assert.match(valHtml, /auditExternalAgenticSite/);
+  assert.match(valHtml, /from "\.\/runtime\.js"/);
+  assert.match(valHtml, /delegationSvg/);
 });

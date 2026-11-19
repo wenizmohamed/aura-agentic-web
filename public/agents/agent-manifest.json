@@ -6,7 +6,8 @@
     "description": "AURA's portable multi-agent brain published as an open agentic network: a plan/research/build/verify/critique loop any conforming runtime can load and run in the browser.",
     "publisher": "AURA / Weni",
     "homepage": "https://aura-agentic-web.vercel.app",
-    "runtime": "/runtime.js"
+    "runtime": "/runtime.js",
+    "validator_tool": "https://aura-agentic-web.vercel.app/validator.html"
   },
   "inference": {
     "default_router": {

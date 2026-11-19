@@ -1696,7 +1696,16 @@ export class AuraRuntime {
     if ((Date.now() - this._startedAt) / 1000 > this.limits.max_elapsed_seconds) throw new Error("Elapsed-time limit reached.");
     const agent = this.agents.get(name);
     if (!agent) throw new Error("Unknown agent: " + name);
-    this.onEvent({ type: "agent_start", agent: name, depth, input });
+    this.onEvent({
+      type: "agent_start",
+      agent: name,
+      depth,
+      input,
+      invocations: this._invocations,
+      remoteCalls: this._remoteCalls,
+      elapsedMs: Date.now() - this._startedAt,
+      limits: { ...this.limits }
+    });
 
     const callable = (agent.tools || [])
       .filter((t) => typeof t === "string" && this.agents.has(t))
@@ -1733,7 +1742,17 @@ export class AuraRuntime {
             args = rawArgs;
           }
 
-          this.onEvent({ type: "agent_delegate", from: name, to: childName, depth: depth + 1, input: args });
+          this.onEvent({
+            type: "agent_delegate",
+            from: name,
+            to: childName,
+            depth: depth + 1,
+            input: args,
+            invocations: this._invocations,
+            remoteCalls: this._remoteCalls,
+            elapsedMs: Date.now() - this._startedAt,
+            limits: { ...this.limits }
+          });
 
           let toolContent = "";
           if (!this.agents.has(childName)) {
@@ -1750,7 +1769,16 @@ export class AuraRuntime {
       const textOut = Array.isArray(msg.content)
         ? msg.content.map((p) => (typeof p === "string" ? p : (p && p.text) || "")).join("")
         : (typeof msg.content === "string" ? msg.content : "");
-      this.onEvent({ type: "agent_done", agent: name, depth, output: textOut });
+      this.onEvent({
+        type: "agent_done",
+        agent: name,
+        depth,
+        output: textOut,
+        invocations: this._invocations,
+        remoteCalls: this._remoteCalls,
+        elapsedMs: Date.now() - this._startedAt,
+        limits: { ...this.limits }
+      });
       return textOut;
     }
 
@@ -1929,9 +1957,28 @@ export class AuraRuntime {
         ];
 
         for (const step of steps) {
-          this.onEvent({ type: "agent_delegate", from: front, to: step.agent, depth: 1, input: step.input });
+          this.onEvent({
+            type: "agent_delegate",
+            from: front,
+            to: step.agent,
+            depth: 1,
+            input: step.input,
+            invocations: this._invocations,
+            remoteCalls: this._remoteCalls,
+            elapsedMs: Date.now() - this._startedAt,
+            limits: { ...this.limits }
+          });
           checkBudgets(1);
-          this.onEvent({ type: "agent_start", agent: step.agent, depth: 1, input: step.input });
+          this.onEvent({
+            type: "agent_start",
+            agent: step.agent,
+            depth: 1,
+            input: step.input,
+            invocations: this._invocations,
+            remoteCalls: this._remoteCalls,
+            elapsedMs: Date.now() - this._startedAt,
+            limits: { ...this.limits }
+          });
           await pause(Math.round(delayMs * 0.55));
           this.onEvent({
             type: "agent_stream",
@@ -1941,7 +1988,16 @@ export class AuraRuntime {
             toolCalls: 0
           });
           await pause(Math.round(delayMs * 0.65));
-          this.onEvent({ type: "agent_done", agent: step.agent, depth: 1, output: step.out });
+          this.onEvent({
+            type: "agent_done",
+            agent: step.agent,
+            depth: 1,
+            output: step.out,
+            invocations: this._invocations,
+            remoteCalls: this._remoteCalls,
+            elapsedMs: Date.now() - this._startedAt,
+            limits: { ...this.limits }
+          });
           stageOutputs[step.agent] = step.out;
         }
 
@@ -2343,5 +2399,405 @@ export async function runSpecConformanceAudit({ origin, fetchImpl = fetch } = {}
     checkedAt: new Date().toISOString(),
     origin: baseOrigin || "(relative)",
     checks
+  };
+}
+
+// --- Build normalized graph topology (nodes + directed edges) from any Neuro SAN network ---
+export function buildAgentGraph(def) {
+  if (!def || typeof def !== "object" || !Array.isArray(def.tools)) {
+    return { name: "network", front: null, nodes: [], edges: [] };
+  }
+  const meta = def.metadata && typeof def.metadata === "object" ? def.metadata : {};
+  const front = meta.front_agent || meta.front_man || def.front_agent || def.front_man || null;
+  const nodes = def.tools
+    .filter((t) => t && typeof t.name === "string")
+    .map((t) => ({
+      id: t.name,
+      isFront: t.name === front,
+      description: (t.function && t.function.description) || t.instructions || t.name,
+      tools: Array.isArray(t.tools) ? t.tools.slice() : []
+    }));
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const edges = [];
+  for (const n of nodes) {
+    for (const ref of n.tools) {
+      if (typeof ref === "string") {
+        edges.push({
+          from: n.id,
+          to: ref,
+          external: !nodeIds.has(ref)
+        });
+      }
+    }
+  }
+  return {
+    name: meta.name || "network",
+    front,
+    nodes,
+    edges
+  };
+}
+
+// --- Reusable Community Tool: Live External Peer-Site Conformance Validator (MVP Profile 0.2) ---
+// Accepts ANY Agentic Web URL (site origin, peer subpath like /agents/aura-core,
+// or direct /agent-manifest.json), scores it 0-100 across 10 live spec checks,
+// and returns the validated network definition + graph ready for browser federation.
+export async function auditExternalAgenticSite(
+  rawTargetUrl,
+  { fetchImpl = fetch, confirmOriginFn = null } = {}
+) {
+  const input = String(rawTargetUrl || "").trim();
+  if (!input) {
+    throw new Error("Enter an Agentic Web URL to validate (e.g. https://aura-agentic-web.vercel.app/agents/aura-core).");
+  }
+  const normalizedInput = /^https?:\/\//i.test(input) ? input : "https://" + input;
+  let parsed;
+  try {
+    parsed = new URL(normalizedInput);
+  } catch {
+    throw new Error("Malformed URL: " + input);
+  }
+
+  const isLocal = isLocalHostName(parsed.hostname);
+  const httpsOk = parsed.protocol === "https:" || (parsed.protocol === "http:" && isLocal);
+
+  // Derive manifestUrl, base, and optional requested peer network name
+  let base = parsed.origin + "/";
+  let manifestUrl = parsed.origin + "/agent-manifest.json";
+  let requestedNetwork = null;
+
+  const cleanPath = parsed.pathname.replace(/\/+$/, "");
+  if (!cleanPath || cleanPath === "/") {
+    base = parsed.origin + "/";
+    manifestUrl = base + "agent-manifest.json";
+  } else if (/\/agent-manifest\.json$/i.test(cleanPath)) {
+    const dir = cleanPath.slice(0, cleanPath.length - "agent-manifest.json".length);
+    base = parsed.origin + (dir.endsWith("/") ? dir : dir + "/");
+    manifestUrl = parsed.origin + cleanPath;
+  } else {
+    const parts = cleanPath.split("/").filter(Boolean);
+    requestedNetwork = parts.pop();
+    base = parsed.origin + "/" + parts.join("/") + (parts.length ? "/" : "");
+    manifestUrl = base + "agent-manifest.json";
+  }
+
+  const wellKnownUrl = parsed.origin + "/.well-known/agent-manifest.json";
+
+  if (confirmOriginFn) {
+    const allowed = await confirmOriginFn({
+      origin: parsed.origin,
+      networkName: requestedNetwork || "(root manifest)",
+      peerUrl: parsed.href,
+      manifestUrl,
+      purpose: "audit Agentic Web MVP Profile 0.2 conformance"
+    });
+    if (!allowed) {
+      return {
+        aborted: true,
+        reason: "Origin contact denied by user (fail closed; 0 bytes fetched).",
+        targetUrl: parsed.href,
+        origin: parsed.origin,
+        score: 0,
+        passed: 0,
+        total: 10,
+        grade: "DENIED",
+        checkedAt: new Date().toISOString(),
+        checks: []
+      };
+    }
+  }
+
+  const checks = [];
+  const pushCheck = (id, label, pathLabel, pass, detail, extra = {}) => {
+    checks.push({
+      id,
+      label,
+      path: pathLabel,
+      pass: Boolean(pass),
+      points: pass ? 10 : 0,
+      status: extra.status ?? (pass ? 200 : 0),
+      cors: extra.cors ?? "n/a",
+      ms: extra.ms ?? 0,
+      detail
+    });
+  };
+
+  // 1. HTTPS Transport Security
+  pushCheck(
+    "https_transport",
+    "HTTPS Transport Security",
+    parsed.protocol,
+    httpsOk,
+    httpsOk
+      ? parsed.protocol === "https:"
+        ? "Secure HTTPS origin (" + parsed.origin + ")"
+        : "Loopback HTTP allowed for local development"
+      : "Production Agentic Web sites MUST use HTTPS (got " + parsed.protocol + ")",
+    { status: httpsOk ? 200 : 400, cors: "transport" }
+  );
+
+  // 2 & 3 & 4. Manifest Fetch, Open CORS, MVP 0.2 Schema
+  let manifest = null;
+  let manifestStatus = 0;
+  let manifestAcao = "";
+  let manifestMs = 0;
+  let manifestFetchErr = "";
+
+  if (httpsOk) {
+    const t0 = Date.now();
+    try {
+      const mRes = await fetchImpl(manifestUrl, { mode: "cors", credentials: "omit", cache: "no-store" });
+      manifestMs = Date.now() - t0;
+      manifestStatus = mRes.status;
+      manifestAcao = mRes.headers ? String(mRes.headers.get("access-control-allow-origin") || "") : "";
+      if (mRes.ok) {
+        manifest = await mRes.json();
+      } else {
+        manifestFetchErr = "HTTP " + mRes.status + " from " + manifestUrl;
+      }
+    } catch (e) {
+      manifestMs = Date.now() - t0;
+      manifestFetchErr = (e && e.message) ? e.message : String(e);
+    }
+  } else {
+    manifestFetchErr = "Skipped fetch due to non-HTTPS origin";
+  }
+
+  pushCheck(
+    "manifest_fetch",
+    "Public Manifest Fetch",
+    manifestUrl,
+    Boolean(manifest && manifestStatus === 200),
+    manifest
+      ? "HTTP 200 JSON retrieved with credentials: omit (" + manifestMs + "ms)"
+      : "Failed to load manifest: " + (manifestFetchErr || "invalid JSON"),
+    { status: manifestStatus, cors: manifestAcao || "missing", ms: manifestMs }
+  );
+
+  const manifestCorsOk = Boolean(manifestAcao === "*" || (typeof location !== "undefined" && manifestAcao === location.origin));
+  pushCheck(
+    "manifest_cors",
+    "Open CORS on Manifest",
+    "Access-Control-Allow-Origin",
+    Boolean(manifest && manifestCorsOk),
+    manifestCorsOk
+      ? "Permits cross-origin browser loading (ACAO: " + manifestAcao + ")"
+      : "Missing permissive Access-Control-Allow-Origin header (got '" + (manifestAcao || "none") + "')",
+    { status: manifestStatus, cors: manifestAcao || "missing", ms: manifestMs }
+  );
+
+  const manifestValidation = manifest ? validateManifest(manifest) : { ok: false, errors: ["Manifest unavailable"] };
+  pushCheck(
+    "manifest_schema",
+    "MVP Profile 0.2 Manifest Schema",
+    "manifest_version: 0.2",
+    manifestValidation.ok,
+    manifestValidation.ok
+      ? "Valid MVP 0.2 manifest · site='" + manifest.site.name + "' · networks=[" + manifestValidation.networks.join(", ") + "] · BYOK=" + Boolean(manifest.inference && manifest.inference.byok_supported)
+      : manifestValidation.errors.join("; "),
+    { status: manifestStatus, cors: manifestAcao || "n/a" }
+  );
+
+  // 5. Exact-Match Network Resolution (Fail-Closed)
+  let selectedEntry = null;
+  let resolutionOk = false;
+  let resolutionDetail = "";
+  if (manifest && Array.isArray(manifest.networks) && manifest.networks.length) {
+    if (requestedNetwork) {
+      selectedEntry = manifest.networks.find((n) => n && n.name === requestedNetwork) || null;
+      if (selectedEntry) {
+        resolutionOk = true;
+        resolutionDetail = "Exact match found for '" + requestedNetwork + "' -> " + selectedEntry.hocon;
+      } else {
+        resolutionOk = false;
+        resolutionDetail =
+          "Fail closed: manifest has no exact-match network '" +
+          requestedNetwork +
+          "' (available: " +
+          manifest.networks.map((n) => n.name).join(", ") +
+          ")";
+      }
+    } else {
+      selectedEntry = manifest.networks[0];
+      resolutionOk = Boolean(selectedEntry && selectedEntry.name && selectedEntry.hocon);
+      resolutionDetail = resolutionOk
+        ? "Resolved primary network '" + selectedEntry.name + "' -> " + selectedEntry.hocon
+        : "No valid network entry found";
+    }
+  } else {
+    resolutionDetail = "Cannot resolve network because manifest is missing or empty";
+  }
+
+  pushCheck(
+    "exact_match_resolution",
+    "Exact-Match Peer Resolution",
+    requestedNetwork ? "network=" + requestedNetwork : "primary network",
+    resolutionOk,
+    resolutionDetail,
+    { status: resolutionOk ? 200 : 404, cors: manifestAcao || "n/a" }
+  );
+
+  // 6. Well-Known Discovery (/.well-known/agent-manifest.json)
+  let wkOk = false;
+  let wkStatus = 0;
+  let wkAcao = "";
+  let wkMs = 0;
+  let wkDetail = "";
+  if (httpsOk) {
+    const t0 = Date.now();
+    try {
+      const wkRes = await fetchImpl(wellKnownUrl, { mode: "cors", credentials: "omit", cache: "no-store" });
+      wkMs = Date.now() - t0;
+      wkStatus = wkRes.status;
+      wkAcao = wkRes.headers ? String(wkRes.headers.get("access-control-allow-origin") || "") : "";
+      if (wkRes.ok) {
+        const wkJson = await wkRes.json();
+        const wkVal = validateManifest(wkJson);
+        wkOk = wkVal.ok && (wkAcao === "*" || (typeof location !== "undefined" && wkAcao === location.origin));
+        wkDetail = wkOk
+          ? "HTTP 200 + CORS (" + wkAcao + ") · valid MVP 0.2 discovery manifest"
+          : !wkVal.ok
+          ? "Invalid well-known manifest: " + wkVal.errors[0]
+          : "Missing CORS header on /.well-known/agent-manifest.json";
+      } else {
+        wkDetail = "HTTP " + wkRes.status + " at /.well-known/agent-manifest.json";
+      }
+    } catch (e) {
+      wkMs = Date.now() - t0;
+      wkDetail = "Discovery probe failed: " + ((e && e.message) ? e.message : String(e));
+    }
+  } else {
+    wkDetail = "Skipped due to non-HTTPS origin";
+  }
+  pushCheck("well_known_discovery", "Well-Known Discovery Endpoint", wellKnownUrl, wkOk, wkDetail, {
+    status: wkStatus,
+    cors: wkAcao || "missing",
+    ms: wkMs
+  });
+
+  // 7, 8, 9, 10. Network Definition Fetch, Neuro SAN Schema, Finite Bounds, Private Context
+  let definitionUrl = null;
+  let networkDef = null;
+  let defStatus = 0;
+  let defAcao = "";
+  let defMs = 0;
+  let defErr = "";
+
+  if (httpsOk && selectedEntry && selectedEntry.hocon) {
+    try {
+      const resolved = new URL(selectedEntry.hocon, base);
+      definitionUrl = resolved.href;
+      const t0 = Date.now();
+      const dRes = await fetchImpl(definitionUrl, { mode: "cors", credentials: "omit", cache: "no-store" });
+      defMs = Date.now() - t0;
+      defStatus = dRes.status;
+      defAcao = dRes.headers ? String(dRes.headers.get("access-control-allow-origin") || "") : "";
+      if (dRes.ok) {
+        networkDef = await dRes.json();
+      } else {
+        defErr = "HTTP " + dRes.status + " fetching " + definitionUrl;
+      }
+    } catch (e) {
+      defErr = (e && e.message) ? e.message : String(e);
+    }
+  } else {
+    defErr = requestedNetwork && !selectedEntry
+      ? "Halted fail-closed (no exact-match network entry)"
+      : "No hocon definition URL to fetch";
+  }
+
+  const defCorsOk = Boolean(defAcao === "*" || (typeof location !== "undefined" && defAcao === location.origin));
+  pushCheck(
+    "network_def_fetch",
+    "Network Definition + CORS",
+    definitionUrl || "unresolved",
+    Boolean(networkDef && defStatus === 200 && defCorsOk),
+    networkDef && defCorsOk
+      ? "HTTP 200 JSON + CORS (" + defAcao + ") in " + defMs + "ms"
+      : networkDef && !defCorsOk
+      ? "Fetched JSON but missing CORS header (got '" + (defAcao || "none") + "')"
+      : defErr,
+    { status: defStatus, cors: defAcao || "missing", ms: defMs }
+  );
+
+  const netVal = networkDef ? validateNetworkDefinition(networkDef) : { ok: false, errors: ["Network definition unavailable"] };
+  pushCheck(
+    "neuro_san_schema",
+    "Neuro SAN Graph & Safe Data",
+    "validateNetworkDefinition",
+    netVal.ok,
+    netVal.ok
+      ? netVal.agents.length + " agents (" + netVal.front + " front) · 0 undeclared executable fields"
+      : netVal.errors.join("; "),
+    { status: defStatus, cors: "runtime" }
+  );
+
+  const hasExplicitBounds = Boolean(
+    networkDef &&
+      networkDef.execution_limits &&
+      typeof networkDef.execution_limits.max_composition_depth === "number" &&
+      Number.isFinite(networkDef.execution_limits.max_composition_depth) &&
+      typeof networkDef.execution_limits.max_agent_invocations === "number" &&
+      Number.isFinite(networkDef.execution_limits.max_agent_invocations) &&
+      typeof networkDef.execution_limits.max_remote_calls === "number" &&
+      Number.isFinite(networkDef.execution_limits.max_remote_calls) &&
+      typeof networkDef.execution_limits.max_elapsed_seconds === "number" &&
+      Number.isFinite(networkDef.execution_limits.max_elapsed_seconds)
+  );
+  pushCheck(
+    "finite_execution_bounds",
+    "Explicit Finite Execution Bounds",
+    "execution_limits",
+    netVal.ok && hasExplicitBounds,
+    netVal.ok && hasExplicitBounds
+      ? "depth<=" + netVal.limits.max_composition_depth + " · invocations<=" + netVal.limits.max_agent_invocations + " · remote<=" + netVal.limits.max_remote_calls + " · timeout=" + netVal.limits.max_elapsed_seconds + "s"
+      : "Missing or invalid finite execution_limits in network definition",
+    { status: netVal.ok && hasExplicitBounds ? 200 : 422, cors: "runtime" }
+  );
+
+  const privacyDeclared = Boolean(
+    networkDef &&
+      networkDef.private_context_rules &&
+      networkDef.private_context_rules.deny_by_default === true
+  );
+  const privacyProbe = filterPrivateContext(
+    { visitor_api_key: "sk-secret", session_cookie: "sess-1" },
+    (networkDef && networkDef.private_context_rules) || { deny_by_default: true, allowed_downstream_fields: [] }
+  );
+  const privacyPass = Boolean(netVal.ok && privacyDeclared && Object.keys(privacyProbe).length === 0);
+  pushCheck(
+    "private_context_isolation",
+    "Private Context (sly_data) Isolation",
+    "private_context_rules",
+    privacyPass,
+    privacyPass
+      ? "deny_by_default=true · 0/2 sensitive probe keys forwarded"
+      : "Missing explicit private_context_rules.deny_by_default: true",
+    { status: privacyPass ? 200 : 422, cors: "runtime" }
+  );
+
+  const passed = checks.filter((c) => c.pass).length;
+  const score = passed * 10;
+  const grade = score === 100 ? "CONFORMING (A+)" : score >= 70 ? "PARTIAL" : "NON-CONFORMING";
+
+  return {
+    aborted: false,
+    targetUrl: parsed.href,
+    origin: parsed.origin,
+    manifestUrl,
+    wellKnownUrl,
+    definitionUrl,
+    requestedNetwork,
+    resolvedNetworkName: (selectedEntry && selectedEntry.name) || null,
+    score,
+    passed,
+    total: checks.length,
+    allPassed: passed === checks.length,
+    grade,
+    checkedAt: new Date().toISOString(),
+    checks,
+    manifest,
+    networkDef: netVal.ok ? networkDef : null,
+    agentGraph: netVal.ok ? buildAgentGraph(networkDef) : null
   };
 }

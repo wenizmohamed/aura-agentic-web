@@ -102,7 +102,30 @@
   .stage.lit .sa,.stage.running .sa{color:var(--paper)}
   .flow{display:flex;align-items:center;color:var(--faint);padding:0 6px;font-size:13px}
   @media(max-width:1080px){.flow{display:none}.pipeline{gap:7px}}
-  .chat{flex:1;overflow:auto;padding:18px 20px;max-height:460px;min-height:190px}
+  .chat{flex:1;overflow:auto;padding:16px 20px;max-height:360px;min-height:165px}
+  /* Live SVG Delegation Graph + Finite-Bound Gauges */
+  .graph-strip{padding:10px 18px 12px;border-bottom:1px solid var(--line);background:rgba(17,16,16,.65)}
+  .graph-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+  .graph-svg-wrap{background:var(--bg);border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+  .graph-svg-wrap svg{width:100%;height:152px;display:block}
+  .gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px}
+  @media(max-width:720px){.gauges{grid-template-columns:repeat(2,1fr)}}
+  .gauge{background:var(--surface);border:1px solid var(--line2);border-radius:7px;padding:6px 9px;font-family:var(--mono)}
+  .gauge .gl{font-size:9px;letter-spacing:.9px;color:var(--faint);text-transform:uppercase;display:flex;justify-content:space-between}
+  .gauge .gv{font-size:11.5px;color:var(--paper);font-weight:700;margin-top:2px}
+  .gauge .gt{height:3px;border-radius:3px;background:rgba(236,233,227,.08);margin-top:4px;overflow:hidden}
+  .gauge .gf{height:100%;width:0%;background:var(--green);transition:width .2s ease}
+
+  /* External Peer-Site Conformance Validator */
+  .val-section{border-top:1px solid var(--line);padding:24px 22px 26px;background:var(--bg)}
+  .val-bar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 10px}
+  .val-bar input{flex:1;min-width:240px;background:var(--bg2);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:10px 13px;font-family:var(--mono);font-size:12.5px;outline:none}
+  .val-bar input:focus{border-color:var(--coral)}
+  .val-res-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0;font-family:var(--mono);font-size:12px}
+  .val-score{font-size:18px;font-weight:700;padding:4px 11px;border-radius:7px;border:1px solid var(--line);background:var(--surface)}
+  .val-score.pass{color:var(--green);border-color:rgba(84,207,133,.38);background:rgba(84,207,133,.09)}
+  .val-score.warn{color:var(--amber);border-color:rgba(226,173,85,.38);background:rgba(226,173,85,.09)}
+  .val-score.fail{color:var(--flag);border-color:rgba(255,95,86,.45);background:rgba(255,95,86,.09)}
   .chat::-webkit-scrollbar,.trace::-webkit-scrollbar{width:7px}.chat::-webkit-scrollbar-thumb,.trace::-webkit-scrollbar-thumb{background:var(--line);border-radius:7px}
   .m2{margin-bottom:15px;max-width:95%}
   .m2 .who{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
@@ -202,6 +225,7 @@
     <span class="bc">agentic-web / <span id="netname">aura-core</span></span>
     <div class="right">
       <button class="tag linkbtn" id="topauditpill" type="button" title="Jump to Live Spec Conformance Self-Test">Spec 0.2: checking...</button>
+      <a class="tag linkbtn" href="/validator.html" title="Open Standalone Community Conformance Validator">Validator Tool &nearr;</a>
       <span class="tag">Neuro SAN &middot; MVP 0.2</span>
       <span class="dot" id="netpill">network live</span>
     </div>
@@ -213,8 +237,9 @@
     <p class="lede">AURA is a portable 5-agent Neuro SAN network published as open CORS JSON data. An <b>orchestrator</b> delegates to a <b>researcher</b>, <b>builder</b>, <b>verifier</b>, and <b>critic</b> directly inside your browser with finite bounds and deny-by-default privacy. Try the instant zero-key spec demo, inspect live protocol conformance, plug in any BYOK endpoint, or load a peer agentic site with explicit consent.</p>
     <div class="hero-actions">
       <button class="btn p" id="runspecdemo" type="button">Run Live Spec Demo (No Key Required)</button>
-      <button class="btn g" id="scrollselftest" type="button">Live Spec Conformance Self-Test</button>
-      <span class="hero-note" id="herodemonote">Full 5-agent plan &rarr; build &rarr; verify &rarr; repair &rarr; critique trace in ~3s</span>
+      <button class="btn g" id="scrollselftest" type="button">Live Spec Self-Test (10/10)</button>
+      <button class="btn g" id="scrollvalidator" type="button">External Peer Validator</button>
+      <span class="hero-note" id="herodemonote">Full 5-agent SVG delegation trace + finite bounds in ~3s</span>
     </div>
     <div class="metarow">
       <div class="m"><div class="v">5</div><div class="k">agents</div></div>
@@ -260,6 +285,21 @@
         <div class="flow">&rarr;</div>
         <div class="stage" data-ag="critic"><span class="sn">05</span><span class="st2">STRESS</span><span class="sa">critic</span></div>
       </div>
+      <div class="graph-strip" aria-label="Live SVG Agent Delegation Trace Graph and Finite-Bound Gauges">
+        <div class="graph-top">
+          <span class="lab">Live SVG Delegation Graph</span>
+          <span class="mono" style="font-size:10.5px;color:var(--green)" id="graphstatus">aura-core &middot; sly_data: 0 leaked</span>
+        </div>
+        <div class="graph-svg-wrap">
+          <svg id="delegation-svg" viewBox="0 0 740 152" role="img" aria-label="Live SVG Agent Delegation Graph"></svg>
+        </div>
+        <div class="gauges">
+          <div class="gauge"><div class="gl"><span>Depth</span><span>MAX</span></div><div class="gv" id="gv-depth">0 / 4</div><div class="gt"><div class="gf" id="gf-depth"></div></div></div>
+          <div class="gauge"><div class="gl"><span>Invocations</span><span>CAP</span></div><div class="gv" id="gv-inv">0 / 40</div><div class="gt"><div class="gf" id="gf-inv"></div></div></div>
+          <div class="gauge"><div class="gl"><span>Remote Calls</span><span>CAP</span></div><div class="gv" id="gv-rem">0 / 40</div><div class="gt"><div class="gf" id="gf-rem"></div></div></div>
+          <div class="gauge"><div class="gl"><span>Elapsed</span><span>BUDGET</span></div><div class="gv" id="gv-time">0.0s / 900s</div><div class="gt"><div class="gf" id="gf-time"></div></div></div>
+        </div>
+      </div>
       <div class="chat" id="chat">
         <div class="m2 a"><div class="who">AURA</div><div class="bx">Welcome to AURA Agentic Web (Worldwide Agentic Web MVP Profile 0.2). Click "Run Live Spec Demo (No Key Required)" to watch the full 5-agent bounded delegation loop immediately, or activate your own OpenAI / Gemini / Groq / OpenRouter BYOK key in the right rail for live LLM inference.</div></div>
       </div>
@@ -304,6 +344,37 @@
     </div>
   </div>
 
+  <!-- Live External Peer-Site Conformance Validator & Federation Runner -->
+  <section class="val-section" id="validator" aria-label="External Peer-Site Conformance Validator">
+    <div class="audit-head">
+      <div class="audit-title">
+        <span class="lab">Community Federation Debugger</span>
+        <h2>External Peer-Site Conformance Validator &amp; Federation Runner</h2>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn g" href="/validator.html" target="_blank">Open Standalone Validator &nearr;</a>
+      </div>
+    </div>
+    <p class="psub" style="font-size:12.5px;color:var(--muted2);max-width:860px;margin:0">Enter ANY Worldwide Agentic Web URL (site origin, peer subpath like <code>/agents/aura-core</code>, or direct manifest URL) to audit it live against all 10 MVP Profile 0.2 rules (100-point rubric) and federate its Neuro SAN graph directly into the console above.</p>
+    <div class="val-bar">
+      <input id="extUrl" placeholder="https://aura-agentic-web.vercel.app/agents/aura-core" autocomplete="url" />
+      <button class="btn p" id="runExtAudit" type="button">Validate Peer Site</button>
+      <button class="btn s" id="federateExt" type="button" disabled>Federate &amp; Run in Console</button>
+      <button class="btn g" id="downloadExtReport" type="button" disabled>Download JSON</button>
+    </div>
+    <div class="presets" style="margin-bottom:10px">
+      <span class="lab">Presets:</span>
+      <button class="chip sm" data-ext-url="https://aura-agentic-web.vercel.app" type="button">AURA Root Canonical</button>
+      <button class="chip sm" data-ext-url="https://aura-agentic-web.vercel.app/agents/aura-core" type="button">AURA Peer Subpath (/agents/aura-core)</button>
+      <button class="chip sm" data-ext-url="https://aura-agentic-web.vercel.app/agents/nonexistent-peer" type="button">Fail-Closed Mismatch Test</button>
+    </div>
+    <div class="val-res-head" id="extResHead" hidden>
+      <span class="val-score" id="extScore">--</span>
+      <span id="extSummary" style="color:var(--muted2)"></span>
+    </div>
+    <div class="audit-grid" id="extGrid"></div>
+  </section>
+
   <!-- Live Spec Conformance Self-Test Panel -->
   <section class="audit-section" id="auditpanel" aria-label="Live Spec Conformance Self-Test">
     <div class="audit-head">
@@ -341,6 +412,7 @@
 
   <footer>
     <span>OPEN SOURCE / MIT</span>
+    <a href="/validator.html" target="_blank">/validator.html</a>
     <a href="/agent-manifest.json" target="_blank">/agent-manifest.json</a>
     <a href="/.well-known/agent-manifest.json" target="_blank">/.well-known/agent-manifest.json</a>
     <a href="/aura-core.json" target="_blank">/aura-core.json</a>
@@ -355,7 +427,9 @@ import {
   normalizeChatUrl,
   validateRouterInputs,
   classifyRouterError,
-  runSpecConformanceAudit
+  runSpecConformanceAudit,
+  buildAgentGraph,
+  auditExternalAgenticSite
 } from "./runtime.js";
 
 const $ = (id) => document.getElementById(id);
@@ -484,9 +558,13 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// Live execution state for real-time pipeline & progress bubble
+// Live execution state for real-time pipeline, SVG delegation graph & finite-bound gauges
 const activeStack = [];
 const completedAgents = new Set();
+let currentGraph = null;
+let graphHops = new Map();
+let activeEdgeKey = null;
+let maxDepthSeen = 0;
 let completedSteps = 0;
 let traceEventCount = 0;
 let runStartedAt = 0;
@@ -497,6 +575,82 @@ let isRunning = false;
 let isVerifyingRouter = false;
 let routerConfigEpoch = 0;
 let demoInfo = { available: false, model: null };
+
+function updateBoundGauges({ depth = 0, invocations = 0, remoteCalls = 0, elapsedMs = 0, limits = null } = {}) {
+  const lim = limits || (rt && rt.limits) || {
+    max_composition_depth: 4,
+    max_agent_invocations: 40,
+    max_remote_calls: 40,
+    max_elapsed_seconds: 900
+  };
+  const maxD = lim.max_composition_depth || 4;
+  const maxI = lim.max_agent_invocations || 40;
+  const maxR = lim.max_remote_calls || 40;
+  const maxT = lim.max_elapsed_seconds || 900;
+  const elSec = (elapsedMs || 0) / 1000;
+  $("gv-depth").textContent = depth + " / " + maxD;
+  $("gv-inv").textContent = invocations + " / " + maxI;
+  $("gv-rem").textContent = remoteCalls + " / " + maxR;
+  $("gv-time").textContent = elSec.toFixed(1) + "s / " + maxT + "s";
+  $("gf-depth").style.width = Math.min(100, (depth / maxD) * 100) + "%";
+  $("gf-inv").style.width = Math.min(100, (invocations / maxI) * 100) + "%";
+  $("gf-rem").style.width = Math.min(100, (remoteCalls / maxR) * 100) + "%";
+  $("gf-time").style.width = Math.min(100, (elSec / maxT) * 100) + "%";
+}
+
+function renderDelegationSvg() {
+  const svg = $("delegation-svg");
+  if (!svg) return;
+  if (!currentGraph || !currentGraph.nodes || !currentGraph.nodes.length) {
+    svg.innerHTML = '<text x="370" y="80" text-anchor="middle" fill="#817B71" font-family="JetBrains Mono,monospace" font-size="12">Loading Neuro SAN topology...</text>';
+    return;
+  }
+  const front = currentGraph.nodes.find((n) => n.isFront) || currentGraph.nodes[0];
+  const others = currentGraph.nodes.filter((n) => n.id !== front.id);
+  const pos = new Map();
+  pos.set(front.id, { x: 370, y: 31 });
+  const span = Math.max(1, others.length);
+  others.forEach((n, i) => {
+    const x = span === 1 ? 370 : 95 + (550 * i) / (span - 1);
+    pos.set(n.id, { x, y: 118 });
+  });
+
+  const runningNames = new Set(activeStack.map((item) => item.agent));
+  let out =
+    '<defs><marker id="dg-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#5a544b"/></marker>' +
+    '<marker id="dg-arr-coral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#EA7A5E"/></marker>' +
+    '<marker id="dg-arr-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 1 L 10 5 L 0 9 z" fill="#54CF85"/></marker></defs>';
+
+  for (const e of currentGraph.edges) {
+    const a = pos.get(e.from), b = pos.get(e.to);
+    if (!a || !b) continue;
+    const key = e.from + "->" + e.to;
+    const count = graphHops.get(key) || 0;
+    const isHot = activeEdgeKey === key;
+    const stroke = isHot ? "#54CF85" : count > 0 ? "#EA7A5E" : "rgba(236,233,227,0.18)";
+    const marker = isHot ? "dg-arr-hot" : count > 0 ? "dg-arr-coral" : "dg-arr";
+    const sw = isHot ? 2.8 : count > 0 ? 2.1 : 1.3;
+    const midX = (a.x + b.x) / 2;
+    const midY = (a.y + b.y) / 2 - 8;
+    out += '<path d="M ' + a.x + ' ' + (a.y + 17) + ' Q ' + midX + ' ' + midY + ' ' + b.x + ' ' + (b.y - 18) + '" fill="none" stroke="' + stroke + '" stroke-width="' + sw + '" marker-end="url(#' + marker + ')"/>';
+    if (count > 0) {
+      out += '<rect x="' + (midX - 13) + '" y="' + (midY - 8) + '" width="26" height="15" rx="4" fill="#15140f" stroke="' + stroke + '" stroke-width="1"/>';
+      out += '<text x="' + midX + '" y="' + (midY + 3) + '" text-anchor="middle" fill="#ECE9E3" font-family="JetBrains Mono,monospace" font-size="9.5">x' + count + '</text>';
+    }
+  }
+
+  for (const n of currentGraph.nodes) {
+    const p = pos.get(n.id);
+    if (!p) continue;
+    const isHot = runningNames.has(n.id);
+    const isDone = completedAgents.has(n.id);
+    const fill = isHot ? "rgba(84,207,133,0.18)" : isDone ? "rgba(84,207,133,0.08)" : n.isFront ? "rgba(234,122,94,0.13)" : "#15140f";
+    const stroke = isHot ? "#54CF85" : isDone ? "rgba(84,207,133,0.72)" : n.isFront ? "#EA7A5E" : "rgba(236,233,227,0.22)";
+    out += '<g><rect x="' + (p.x - 62) + '" y="' + (p.y - 17) + '" width="124" height="34" rx="8" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + (isHot ? 2.4 : 1.4) + '"/>';
+    out += '<text x="' + p.x + '" y="' + (p.y + 4) + '" text-anchor="middle" fill="#ECE9E3" font-family="JetBrains Mono,monospace" font-size="11.5" font-weight="600">' + esc(n.id) + '</text></g>';
+  }
+  svg.innerHTML = out;
+}
 
 function resetPipelineStates() {
   document.querySelectorAll(".agent, .stage").forEach((el) => {
@@ -607,21 +761,54 @@ function addEv(ev) {
       };
     });
     renderRoster(built);
+    currentGraph = buildAgentGraph(rt.network);
+    graphHops = new Map();
+    activeEdgeKey = null;
+    maxDepthSeen = 0;
+    $("graphstatus").textContent = (ev.name || "network") + " · " + ev.agents.length + " nodes · sly_data: 0 leaked";
+    renderDelegationSvg();
+    updateBoundGauges({ depth: 0, invocations: 0, remoteCalls: 0, elapsedMs: 0, limits: ev.limits });
   } else if (ev.type === "run_start") {
     activeStack.length = 0;
     completedAgents.clear();
+    graphHops = new Map();
+    activeEdgeKey = null;
+    maxDepthSeen = 0;
     completedSteps = 0;
     streamProgress = null;
     runStartedAt = Date.now();
     resetPipelineStates();
+    renderDelegationSvg();
+    updateBoundGauges({ depth: 0, invocations: 0, remoteCalls: 0, elapsedMs: 0 });
     updateProgressBubble();
   } else if (ev.type === "agent_start") {
     streamProgress = null;
     activeStack.push({ agent: ev.agent, depth: ev.depth || 0 });
+    maxDepthSeen = Math.max(maxDepthSeen, ev.depth || 0);
     syncAgentStates();
+    renderDelegationSvg();
+    updateBoundGauges({
+      depth: maxDepthSeen,
+      invocations: ev.invocations || completedSteps + activeStack.length,
+      remoteCalls: ev.remoteCalls || 0,
+      elapsedMs: ev.elapsedMs || (runStartedAt ? Date.now() - runStartedAt : 0),
+      limits: ev.limits
+    });
     updateProgressBubble();
   } else if (ev.type === "agent_delegate") {
     streamProgress = null;
+    const edgeKey = ev.from + "->" + ev.to;
+    graphHops.set(edgeKey, (graphHops.get(edgeKey) || 0) + 1);
+    activeEdgeKey = edgeKey;
+    maxDepthSeen = Math.max(maxDepthSeen, ev.depth || 0);
+    renderDelegationSvg();
+    updateBoundGauges({
+      depth: maxDepthSeen,
+      invocations: ev.invocations || completedSteps + activeStack.length,
+      remoteCalls: ev.remoteCalls || 0,
+      elapsedMs: ev.elapsedMs || (runStartedAt ? Date.now() - runStartedAt : 0),
+      limits: ev.limits
+    });
     updateProgressBubble();
   } else if (ev.type === "agent_done") {
     streamProgress = null;
@@ -634,17 +821,35 @@ function addEv(ev) {
     completedAgents.add(ev.agent);
     if ((ev.depth || 0) > 0) completedSteps++;
     syncAgentStates();
+    renderDelegationSvg();
+    updateBoundGauges({
+      depth: maxDepthSeen,
+      invocations: ev.invocations || completedSteps + 1,
+      remoteCalls: ev.remoteCalls || 0,
+      elapsedMs: ev.elapsedMs || (runStartedAt ? Date.now() - runStartedAt : 0),
+      limits: ev.limits
+    });
     updateProgressBubble();
   } else if (ev.type === "run_done") {
     streamProgress = null;
     activeStack.length = 0;
+    activeEdgeKey = null;
     syncAgentStates();
+    renderDelegationSvg();
+    updateBoundGauges({
+      depth: maxDepthSeen,
+      invocations: ev.invocations || completedSteps + 1,
+      remoteCalls: ev.remoteCalls || 0,
+      elapsedMs: ev.elapsedMs || (runStartedAt ? Date.now() - runStartedAt : 0)
+    });
   } else if (ev.type === "run_error") {
     streamProgress = null;
     activeStack.length = 0;
+    activeEdgeKey = null;
     document.querySelectorAll(".agent, .stage").forEach((el) => {
       el.classList.remove("lit", "running");
     });
+    renderDelegationSvg();
   }
 
   traceEventCount++;
@@ -760,6 +965,91 @@ $("topauditpill").onclick = () => {
 $("scrollselftest").onclick = () => {
   $("auditpanel").scrollIntoView({ behavior: "smooth", block: "start" });
   executeConformanceAudit();
+};
+$("scrollvalidator").onclick = () => {
+  $("validator").scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+// External Peer-Site Conformance Validator & Federation Runner
+let lastExtReport = null;
+async function runExternalPeerValidation(targetOverride) {
+  const url = String(targetOverride || $("extUrl").value || "").trim();
+  if (!url) {
+    $("extUrl").focus();
+    return;
+  }
+  $("extUrl").value = url;
+  $("runExtAudit").disabled = true;
+  $("runExtAudit").textContent = "Validating...";
+  $("federateExt").disabled = true;
+  $("downloadExtReport").disabled = true;
+  $("extResHead").hidden = false;
+  $("extScore").className = "val-score";
+  $("extScore").textContent = "...";
+  $("extSummary").textContent = "Auditing live manifests, CORS headers, Neuro SAN graph & bounds...";
+
+  try {
+    const report = await auditExternalAgenticSite(url, {
+      confirmOriginFn: (req) => {
+        if (req.origin === location.origin) return Promise.resolve(true);
+        return openConsentModal(req);
+      }
+    });
+    lastExtReport = report;
+    const cls = report.score === 100 ? "pass" : report.score >= 70 ? "warn" : "fail";
+    $("extScore").className = "val-score " + cls;
+    $("extScore").textContent = report.score + "/100 · " + report.grade;
+    $("extSummary").textContent =
+      report.aborted
+        ? report.reason
+        : report.passed + "/" + report.total + " PASS · Target: " + report.targetUrl + (report.resolvedNetworkName ? " · Network: " + report.resolvedNetworkName : "");
+
+    $("downloadExtReport").disabled = false;
+    $("federateExt").disabled = !Boolean(report.networkDef);
+
+    const grid = $("extGrid");
+    grid.innerHTML = "";
+    (report.checks || []).forEach((c) => {
+      const card = document.createElement("div");
+      card.className = "chk " + (c.pass ? "pass" : "fail");
+      card.innerHTML =
+        '<div class="chk-top"><span class="chk-name">' + esc(c.label) + '</span><span class="chk-badge">' + (c.pass ? "+10 PASS" : "0 FAIL") + '</span></div>' +
+        '<div class="chk-meta"><span>' + esc(c.path) + '</span><span>HTTP ' + esc(c.status) + '</span><span>ACAO: ' + esc(c.cors) + '</span>' + (c.ms ? '<span>' + esc(c.ms) + 'ms</span>' : '') + '</div>' +
+        '<div class="chk-detail">' + esc(c.detail) + '</div>';
+      grid.appendChild(card);
+    });
+  } catch (err) {
+    $("extScore").className = "val-score fail";
+    $("extScore").textContent = "ERROR";
+    $("extSummary").textContent = err && err.message ? err.message : String(err);
+  } finally {
+    $("runExtAudit").disabled = false;
+    $("runExtAudit").textContent = "Validate Peer Site";
+  }
+}
+
+$("runExtAudit").onclick = () => runExternalPeerValidation();
+$("extUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") runExternalPeerValidation(); });
+document.querySelectorAll("[data-ext-url]").forEach((btn) => {
+  btn.onclick = () => runExternalPeerValidation(btn.getAttribute("data-ext-url"));
+});
+$("federateExt").onclick = () => {
+  if (!lastExtReport || !lastExtReport.networkDef) return;
+  const loaded = rt.loadNetwork(lastExtReport.networkDef);
+  $("rcount").textContent = loaded.agents.length + " nodes";
+  $("pstatus").className = "st ok";
+  $("pstatus").textContent = "Federated via Validator: " + loaded.name + " (" + loaded.agents.length + " agents).";
+  $("pipeline").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  runSpecDemoUi("Federated peer execution check on " + loaded.name);
+};
+$("downloadExtReport").onclick = () => {
+  if (!lastExtReport) return;
+  const blob = new Blob([JSON.stringify(lastExtReport, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "agentic-web-conformance-report.json";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 };
 
 function clearAttn() {
