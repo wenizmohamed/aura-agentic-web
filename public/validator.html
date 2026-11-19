@@ -374,8 +374,12 @@ $("runDryRun").onclick = async () => {
   box.classList.add("show");
   box.textContent = "Running bounded zero-key federation dry-run on " + lastReport.resolvedNetworkName + "...";
 
+  let maxDepth = 0;
   const rt = new AuraRuntime({
     onEvent: (ev) => {
+      if (typeof ev.depth === "number") {
+        maxDepth = Math.max(maxDepth, ev.depth);
+      }
       if (ev.type === "agent_delegate") {
         const key = ev.from + "->" + ev.to;
         hopCounts.set(key, (hopCounts.get(key) || 0) + 1);
@@ -391,7 +395,7 @@ $("runDryRun").onclick = async () => {
       }
       if (ev.limits || ev.invocations != null) {
         updateGauges({
-          depth: ev.depth || 0,
+          depth: maxDepth,
           invocations: ev.invocations || 0,
           remoteCalls: ev.remoteCalls || 0,
           elapsedMs: ev.elapsedMs || 0,
