@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "networks": {
+    "aura-core": {
+      "aura-core-self": "https://aura-agentic-web.vercel.app/agents/aura-core"
+    }
+  }
+}

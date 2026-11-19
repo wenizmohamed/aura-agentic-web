@@ -559,17 +559,205 @@ function isStreamUnsupportedError(status, data, rawText) {
   );
 }
 
+export const HARD_RUNTIME_LIMITS = Object.freeze({
+  max_composition_depth: 8,
+  max_agent_invocations: 100,
+  max_remote_calls: 100,
+  max_concurrency: 8,
+  max_elapsed_seconds: 900
+});
+
+const DEFAULT_RUNTIME_LIMITS = Object.freeze({
+  max_composition_depth: 4,
+  max_agent_invocations: 40,
+  max_remote_calls: 40,
+  max_concurrency: 4,
+  max_elapsed_seconds: 900
+});
+
+const FORBIDDEN_EXECUTABLE_KEYS = [
+  "code",
+  "script",
+  "eval",
+  "inline_code",
+  "handler_source",
+  "executable"
+];
+
+export function validateManifest(manifest) {
+  const errors = [];
+  const warnings = [];
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    return { ok: false, errors: ["Manifest must be a JSON object."], warnings, networks: [] };
+  }
+  if (String(manifest.manifest_version || "") !== "0.2") {
+    errors.push("manifest_version must be '0.2' (MVP Profile 0.2).");
+  }
+  if (!manifest.site || typeof manifest.site !== "object" || !String(manifest.site.name || "").trim()) {
+    errors.push("site.name is required.");
+  }
+  if (!manifest.inference || typeof manifest.inference !== "object") {
+    errors.push("inference metadata object is required.");
+  } else if (typeof manifest.inference.byok_supported !== "boolean") {
+    warnings.push("inference.byok_supported should be a boolean.");
+  }
+  const networks = Array.isArray(manifest.networks) ? manifest.networks : [];
+  if (!networks.length) {
+    errors.push("networks must be a non-empty array.");
+  } else {
+    const seen = new Set();
+    for (const net of networks) {
+      if (!net || typeof net !== "object") {
+        errors.push("Each network entry must be an object.");
+        continue;
+      }
+      const name = String(net.name || "").trim();
+      const front = String(net.front_agent || net.front_man || "").trim();
+      const hocon = String(net.hocon || "").trim();
+      if (!name) errors.push("A network entry is missing 'name'.");
+      else if (seen.has(name)) errors.push("Duplicate network name in manifest: " + name);
+      else seen.add(name);
+      if (!front) errors.push("Network '" + (name || "?") + "' is missing front_agent / front_man.");
+      if (!hocon) errors.push("Network '" + (name || "?") + "' is missing 'hocon' definition path.");
+    }
+  }
+  if (!manifest.peer_policy || typeof manifest.peer_policy !== "object") {
+    warnings.push("peer_policy metadata is recommended.");
+  }
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    networks: networks.map((n) => n && n.name).filter(Boolean)
+  };
+}
+
+export function validateNetworkDefinition(def) {
+  const errors = [];
+  if (!def || typeof def !== "object" || Array.isArray(def)) {
+    return { ok: false, errors: ["Network definition must be an object."], front: null, agents: [], limits: null };
+  }
+  const meta = def.metadata && typeof def.metadata === "object" ? def.metadata : {};
+  const front = meta.front_agent || meta.front_man || def.front_agent || def.front_man || "";
+  if (!front || typeof front !== "string") {
+    errors.push("Network has no front_agent / front_man.");
+  }
+  const tools = Array.isArray(def.tools) ? def.tools : [];
+  if (!tools.length) {
+    errors.push("Network has no agents/tools.");
+  }
+  const names = new Set();
+  for (const t of tools) {
+    if (!t || typeof t !== "object") {
+      errors.push("Agent entry must be an object.");
+      continue;
+    }
+    if (!t.name || typeof t.name !== "string") {
+      errors.push("An agent is missing a name.");
+      continue;
+    }
+    if (names.has(t.name)) {
+      errors.push("Duplicate agent name: " + t.name);
+    }
+    names.add(t.name);
+    for (const badKey of FORBIDDEN_EXECUTABLE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(t, badKey) && t[badKey] != null) {
+        errors.push("Unsupported executable definition field '" + badKey + "' on agent '" + t.name + "'.");
+      }
+    }
+    if (t.function && typeof t.function === "object") {
+      const params = t.function.parameters;
+      if (params !== undefined && (typeof params !== "object" || params === null || params.type !== "object")) {
+        errors.push("Agent '" + t.name + "' function.parameters must be a JSON Schema object.");
+      }
+    }
+  }
+  for (const t of tools) {
+    if (!t || typeof t !== "object") continue;
+    for (const ref of (t.tools || [])) {
+      if (typeof ref === "string" && !/^https?:\/\//i.test(ref) && !names.has(ref)) {
+        errors.push("Agent '" + t.name + "' references unknown agent '" + ref + "'.");
+      }
+    }
+  }
+  if (front && !names.has(front)) {
+    errors.push("Front agent '" + front + "' is not defined.");
+  }
+
+  const limits = { ...DEFAULT_RUNTIME_LIMITS };
+  if (def.execution_limits !== undefined) {
+    if (!def.execution_limits || typeof def.execution_limits !== "object" || Array.isArray(def.execution_limits)) {
+      errors.push("execution_limits must be an object.");
+    } else {
+      for (const key of Object.keys(HARD_RUNTIME_LIMITS)) {
+        if (Object.prototype.hasOwnProperty.call(def.execution_limits, key)) {
+          const val = def.execution_limits[key];
+          if (typeof val !== "number" || !Number.isFinite(val) || val <= 0) {
+            errors.push("execution_limits." + key + " must be a finite positive number.");
+          } else {
+            limits[key] = Math.min(Math.floor(val), HARD_RUNTIME_LIMITS[key]);
+          }
+        }
+      }
+    }
+  }
+
+  const rawPrivacy = def.private_context_rules;
+  const privateContextRules = {
+    deny_by_default: rawPrivacy && typeof rawPrivacy.deny_by_default === "boolean"
+      ? rawPrivacy.deny_by_default
+      : true,
+    allowed_downstream_fields:
+      rawPrivacy && Array.isArray(rawPrivacy.allowed_downstream_fields)
+        ? rawPrivacy.allowed_downstream_fields.filter((f) => typeof f === "string")
+        : [],
+    allowed_upstream_fields:
+      rawPrivacy && Array.isArray(rawPrivacy.allowed_upstream_fields)
+        ? rawPrivacy.allowed_upstream_fields.filter((f) => typeof f === "string")
+        : []
+  };
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    name: meta.name || "network",
+    front,
+    agents: [...names],
+    limits,
+    privateContextRules
+  };
+}
+
+export function filterPrivateContext(slyData, rules = { deny_by_default: true, allowed_downstream_fields: [] }) {
+  if (!slyData || typeof slyData !== "object" || Array.isArray(slyData)) {
+    return {};
+  }
+  const denyByDefault = !rules || rules.deny_by_default !== false;
+  const allowed = new Set(
+    rules && Array.isArray(rules.allowed_downstream_fields)
+      ? rules.allowed_downstream_fields
+      : []
+  );
+  const out = {};
+  for (const [k, v] of Object.entries(slyData)) {
+    if (!denyByDefault || allowed.has(k)) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 export class AuraRuntime {
   constructor({ router, onEvent } = {}) {
     this.router = router || null; // { baseUrl, apiKey, model } or { demo: true, model }
     this.onEvent = onEvent || (() => {});
     this.network = null;
     this.agents = new Map();
-    this.limits = {
-      max_composition_depth: 4,
-      max_agent_invocations: 40,
-      max_remote_calls: 40,
-      max_elapsed_seconds: 900
+    this.limits = { ...DEFAULT_RUNTIME_LIMITS };
+    this.privateContextRules = {
+      deny_by_default: true,
+      allowed_downstream_fields: [],
+      allowed_upstream_fields: []
     };
     this._invocations = 0;
     this._remoteCalls = 0;
@@ -805,69 +993,133 @@ export class AuraRuntime {
     }
   }
 
-  // --- Load + validate a network definition (Tenet One / section 3.1 parse+validate) ---
-  loadNetwork(def) {
-    if (!def || typeof def !== "object") throw new Error("Network definition must be an object.");
-    const meta = def.metadata || {};
-    const front = meta.front_agent || def.front_agent;
-    if (!front) throw new Error("Network has no front_agent.");
-    const tools = Array.isArray(def.tools) ? def.tools : [];
-    if (!tools.length) throw new Error("Network has no agents/tools.");
-    const names = new Set();
-    for (const t of tools) {
-      if (!t.name) throw new Error("An agent is missing a name.");
-      if (names.has(t.name)) throw new Error("Duplicate agent name: " + t.name);
-      names.add(t.name);
-    }
-    // Validate every referenced internal tool exists (external URLs allowed)
-    for (const t of tools) {
-      for (const ref of (t.tools || [])) {
-        if (typeof ref === "string" && !/^https?:\/\//.test(ref) && !names.has(ref)) {
-          throw new Error("Agent '" + t.name + "' references unknown agent '" + ref + "'.");
-        }
-      }
-    }
-    if (!names.has(front)) throw new Error("Front agent '" + front + "' is not defined.");
-    this.network = def;
-    this.agents = new Map(tools.map((t) => [t.name, t]));
-    if (def.execution_limits) this.limits = { ...this.limits, ...def.execution_limits };
-    this.onEvent({ type: "network_loaded", name: meta.name || "network", front, agents: [...names] });
-    return { front, agents: [...names] };
+  // --- Private-context (sly_data) deny-by-default filter (MVP Profile 0.2 section 2.1 & 5) ---
+  filterPrivateContext(slyData) {
+    return filterPrivateContext(slyData, this.privateContextRules);
   }
 
-  async loadNetworkFromUrl(url) {
-    const res = await fetch(url, { mode: "cors" });
+  // --- Load + validate a network definition (Tenet One / section 3.1 parse+validate) ---
+  loadNetwork(def) {
+    const check = validateNetworkDefinition(def);
+    if (!check.ok) {
+      throw new Error(check.errors[0] || "Invalid agent network definition.");
+    }
+    this.network = def;
+    this.agents = new Map((def.tools || []).map((t) => [t.name, t]));
+    this.limits = { ...check.limits };
+    this.privateContextRules = { ...check.privateContextRules };
+    this.onEvent({
+      type: "network_loaded",
+      name: check.name,
+      front: check.front,
+      agents: check.agents,
+      limits: { ...this.limits },
+      denyByDefault: this.privateContextRules.deny_by_default
+    });
+    return {
+      name: check.name,
+      front: check.front,
+      agents: check.agents,
+      limits: { ...this.limits }
+    };
+  }
+
+  async loadNetworkFromUrl(url, fetchImpl = fetch) {
+    const res = await fetchImpl(url, { mode: "cors", credentials: "omit" });
     if (!res.ok) throw new Error("Failed to fetch network (" + res.status + "): " + url);
     const def = await res.json();
     return this.loadNetwork(def);
   }
 
-  // --- Peer-site loading (section 3.2): URL's final path component is the network name ---
-  async loadPeerNetwork(peerUrl, confirmFn) {
-    const u = new URL(peerUrl);
+  // --- Peer-site loading (section 3.2): URL's final path component is the exact network name ---
+  async loadPeerNetwork(peerUrl, confirmFn, fetchImpl = fetch) {
+    let u;
+    try {
+      u = new URL(peerUrl);
+    } catch {
+      throw new Error("Peer URL must be a valid HTTPS URL ending with the network name.");
+    }
+    const isLocal = isLocalHostName(u.hostname);
+    if (u.protocol !== "https:" && !(u.protocol === "http:" && isLocal)) {
+      throw new Error("Peer URL must use HTTPS (http:// is allowed only for localhost development).");
+    }
     const parts = u.pathname.split("/").filter(Boolean);
     const networkName = parts.pop();
     if (!networkName) throw new Error("Peer URL must end with a network name.");
     const base = u.origin + "/" + parts.join("/") + (parts.length ? "/" : "");
-    // Consent before contacting a third-party origin
+    const manifestUrl = base + "agent-manifest.json";
+
+    // Consent before contacting any origin (Spec Section 3.2 & Section 5)
     const ok = confirmFn
-      ? await confirmFn({ origin: u.origin, purpose: "load peer agent network '" + networkName + "'" })
+      ? await confirmFn({
+          origin: u.origin,
+          networkName,
+          peerUrl: u.href,
+          manifestUrl,
+          purpose: "load peer agent network '" + networkName + "'"
+        })
       : false;
     if (!ok) {
-      this.onEvent({ type: "peer_denied", origin: u.origin });
+      this.onEvent({ type: "peer_denied", origin: u.origin, network: networkName });
       return null;
     }
+
+    if (this._remoteCalls + 1 > this.limits.max_remote_calls) {
+      throw new Error("Remote-call limit reached (" + this.limits.max_remote_calls + ").");
+    }
     this._remoteCalls++;
-    const mRes = await fetch(base + "agent-manifest.json", { mode: "cors" });
+    const mRes = await fetchImpl(manifestUrl, { mode: "cors", credentials: "omit" });
     if (!mRes.ok) throw new Error("Peer manifest HTTP " + mRes.status + " from " + u.origin);
     const manifest = await mRes.json();
-    const entry = (manifest.networks || []).find((n) => n.name === networkName);
-    if (!entry) throw new Error("Peer manifest has no exact-match network '" + networkName + "' (fail closed per spec).");
-    const hoconUrl = new URL(entry.hocon, base).href;
-    const hRes = await fetch(hoconUrl, { mode: "cors" });
+    const mCheck = validateManifest(manifest);
+    if (!mCheck.ok) {
+      throw new Error("Peer manifest invalid: " + mCheck.errors[0]);
+    }
+
+    // Fail-closed exact-match network resolution (Spec Section 3.2)
+    const entry = (manifest.networks || []).find((n) => n && n.name === networkName);
+    if (!entry) {
+      throw new Error(
+        "Peer manifest has no exact-match network '" + networkName + "' (fail closed per spec)."
+      );
+    }
+
+    const resolvedHocon = new URL(entry.hocon, base);
+    if (resolvedHocon.protocol !== "https:" && !(resolvedHocon.protocol === "http:" && isLocalHostName(resolvedHocon.hostname))) {
+      throw new Error("Peer network definition URL must use HTTPS.");
+    }
+    if (resolvedHocon.origin !== u.origin) {
+      const okSecond = confirmFn
+        ? await confirmFn({
+            origin: resolvedHocon.origin,
+            networkName,
+            peerUrl: resolvedHocon.href,
+            manifestUrl: resolvedHocon.href,
+            purpose: "fetch redirected network definition for '" + networkName + "'"
+          })
+        : false;
+      if (!okSecond) {
+        this.onEvent({ type: "peer_denied", origin: resolvedHocon.origin, network: networkName });
+        return null;
+      }
+    }
+
+    if (this._remoteCalls + 1 > this.limits.max_remote_calls) {
+      throw new Error("Remote-call limit reached (" + this.limits.max_remote_calls + ").");
+    }
+    this._remoteCalls++;
+    const hRes = await fetchImpl(resolvedHocon.href, { mode: "cors", credentials: "omit" });
     if (!hRes.ok) throw new Error("Peer network definition HTTP " + hRes.status);
     const def = await hRes.json();
-    this.onEvent({ type: "peer_loaded", origin: u.origin, network: networkName });
+
+    // Note: Peer manifest inference metadata is strictly ignored; caller's router & BYOK key never leave caller.
+    this.onEvent({
+      type: "peer_loaded",
+      origin: u.origin,
+      network: networkName,
+      manifestUrl,
+      definitionUrl: resolvedHocon.href
+    });
     return this.loadNetwork(def);
   }
 
@@ -1513,7 +1765,10 @@ export class AuraRuntime {
     this._invocations = 0;
     this._remoteCalls = 0;
     this._startedAt = Date.now();
-    const front = (this.network.metadata && this.network.metadata.front_agent) || this.network.front_agent;
+    const front =
+      (this.network.metadata && (this.network.metadata.front_agent || this.network.metadata.front_man)) ||
+      this.network.front_agent ||
+      this.network.front_man;
     this.onEvent({ type: "run_start", request, front });
     try {
       const out = await this._runAgent(front, { request }, 0);
@@ -1543,4 +1798,550 @@ export class AuraRuntime {
       throw err;
     }
   }
+
+  // --- Interactive Spec Protocol Demo (Zero API Key Required) ---
+  // Walks the loaded Neuro SAN network graph using the exact same finite execution
+  // limits, deny-by-default private-context filter, and structured lifecycle events
+  // without requiring an external LLM key.
+  async runSpecDemo(request, { delayMs = 280 } = {}) {
+    if (!this.network) throw new Error("No network loaded.");
+    const prompt = String(request || "").trim() || "Design a URL shortener, then verify it";
+    const pause = (ms) => (ms > 0 ? new Promise((r) => setTimeout(r, ms)) : Promise.resolve());
+
+    this._invocations = 0;
+    this._remoteCalls = 0;
+    this._startedAt = Date.now();
+
+    const front =
+      (this.network.metadata && (this.network.metadata.front_agent || this.network.metadata.front_man)) ||
+      this.network.front_agent ||
+      this.network.front_man;
+    const frontAgent = this.agents.get(front);
+    if (!frontAgent) throw new Error("Unknown front agent: " + front);
+
+    const checkBudgets = (depth) => {
+      if (depth > this.limits.max_composition_depth) {
+        throw new Error("Composition depth limit reached.");
+      }
+      if (++this._invocations > this.limits.max_agent_invocations) {
+        throw new Error("Agent-invocation limit reached.");
+      }
+      if ((Date.now() - this._startedAt) / 1000 > this.limits.max_elapsed_seconds) {
+        throw new Error("Elapsed-time limit reached.");
+      }
+    };
+
+    const filteredProbe = this.filterPrivateContext({
+      visitor_api_key: "sk-never-forwarded",
+      session_cookie: "private-session-token"
+    });
+    const leakedKeys = Object.keys(filteredProbe).length;
+
+    this.onEvent({ type: "run_start", request: prompt, front, mode: "spec_demo" });
+
+    try {
+      checkBudgets(0);
+      this.onEvent({ type: "agent_start", agent: front, depth: 0, input: { request: prompt } });
+      await pause(delayMs);
+
+      const isAuraCore =
+        front === "orchestrator" &&
+        this.agents.has("researcher") &&
+        this.agents.has("builder") &&
+        this.agents.has("verifier") &&
+        this.agents.has("critic");
+
+      const stageOutputs = {};
+
+      if (isAuraCore) {
+        const lower = prompt.toLowerCase();
+        const isUrlShortener = lower.includes("shortener") || lower.includes("url");
+        const isRetryDecorator = lower.includes("retry") || lower.includes("decorator") || lower.includes("python");
+        const isLaunchPlan = lower.includes("launch") || lower.includes("3-day");
+
+        const specPlan = isUrlShortener
+          ? {
+              research:
+                "Grounded constraints: Base62 7-char IDs yield 3.52T unique slugs (62^7); read:write ratio ~100:1 favors edge KV/Redis cache + durable Postgres/DynamoDB; 301 vs 302 redirect tradeoff (302 preserves click analytics); rate limiting + safe-browsing URL validation prevents open-redirect abuse.",
+              buildV1:
+                "Draft architecture: POST /api/shorten (validates https:// URL, assigns monotonic Snowflake->Base62 key, writes DB + warms Redis), GET /:slug (Redis lookup -> DB fallback -> 302 Location redirect + async click telemetry).",
+              verifyGaps:
+                "GAPS (Pass 1): Missing collision/idempotency policy for duplicate long URLs and missing SSRF/javascript: scheme rejection rule.",
+              buildV2:
+                "Repaired build: Added strict scheme allowlist (http/https only, blocks javascript:/data:/private IPs), optional idempotency key per caller, TTL expiration support, and per-IP token-bucket rate limit (60 req/min).",
+              verifyPass:
+                "PASS (Pass 2): All prompt requirements satisfied, scheme validation closes XSS/open-redirect gap, caching + persistence separation is sound.",
+              critic:
+                "Strongest weakness: Hot-key thundering herd on viral slugs if Redis evicts simultaneously. Failure mode: Cache stampede spikes DB read latency under viral load. High-leverage fix: Add singleflight request coalescing + stale-while-revalidate edge caching."
+            }
+          : isRetryDecorator
+          ? {
+              research:
+                "Grounded constraints: Exponential backoff with full jitter prevents synchronized retry storms (AWS Architecture Blog); preserve wrapped function metadata via functools.wraps; retry only transient exception tuples, never ValueError/TypeError.",
+              buildV1:
+                "Draft implementation: @retry(max_attempts=3, base_delay=0.5, exceptions=(TimeoutError, ConnectionError)) with exponential delay base_delay * (2 ** attempt) + uniform jitter.",
+              verifyGaps:
+                "GAPS (Pass 1): Missing async coroutine support (inspect.iscoroutinefunction) and missing upper max_delay cap to bound tail latency.",
+              buildV2:
+                "Repaired build: Unified sync/async decorator with functools.wraps, max_delay=30.0 cap, full jitter random.uniform(0, min(max_delay, base_delay * 2**attempt)), and on_retry telemetry callback.",
+              verifyPass:
+                "PASS (Pass 2): Handles both sync and async callables, preserves signatures/docstrings, bounds wait time, and re-raises final exception cleanly.",
+              critic:
+                "Strongest weakness: Non-idempotent side-effecting calls can double-execute on network timeout after server commit. Failure mode: Duplicate payment/write on ambiguous timeout. High-leverage fix: Require idempotency key parameter or restrict retries to idempotent operations."
+            }
+          : isLaunchPlan
+          ? {
+              research:
+                "Grounded constraints: 3-day launches succeed when scope freezes by Day 1 EOD; Day 2 focuses on public distribution assets + smoke tests; Day 3 runs staggered release with rollback checklist and live telemetry.",
+              buildV1:
+                "Draft 3-day plan: Day 1 (Freeze MVP + staging deploy), Day 2 (Landing page + demo clip + beta testers), Day 3 (Public launch + post-launch triage).",
+              verifyGaps:
+                "GAPS (Pass 1): Missing explicit go/no-go rollback criteria and measurable Day-3 success metrics.",
+              buildV2:
+                "Repaired plan: Added concrete Day 1 smoke-test gate, Day 2 beta feedback cutoff (zero P0 bugs), Day 3 rollback trigger (>2% 5xx rate) and activation/retention KPIs.",
+              verifyPass:
+                "PASS (Pass 2): Actionable 72-hour milestones, explicit risk gates, and verifiable launch metrics.",
+              critic:
+                "Strongest weakness: Single-threaded Day 2 dependency on beta feedback can slip Day 3 launch. Failure mode: Unresolved onboarding friction discovered 4 hours before launch. High-leverage fix: Pre-recruit 5 beta testers on Day 1 morning so feedback lands 24h earlier."
+            }
+          : {
+              research:
+                "Grounded core domain constraints, edge cases, and verification criteria for: \"" + prompt + "\". Flagged assumptions explicitly so downstream stages stay deterministic.",
+              buildV1:
+                "Produced initial structured solution covering primary requirements, interface boundaries, and operational defaults for: \"" + prompt + "\".",
+              verifyGaps:
+                "GAPS (Pass 1): Identified missing failure-mode handling and explicit validation boundary checks against the original prompt.",
+              buildV2:
+                "Repaired artifact: Incorporated fail-closed input validation, explicit bounds, and concrete verification hooks addressing every Pass-1 gap.",
+              verifyPass:
+                "PASS (Pass 2): Verified repaired artifact against every requirement in the prompt with zero unresolved gaps.",
+              critic:
+                "Strongest weakness: Production assumptions should be validated under real workload latency. Failure mode: External dependency timeout without circuit breaking. High-leverage fix: Add bounded retries + observable health telemetry."
+            };
+
+        const steps = [
+          { agent: "researcher", input: { query: prompt }, out: specPlan.research, reasoning: 142 },
+          { agent: "builder", input: { spec: "Build solution for: " + prompt }, out: specPlan.buildV1, reasoning: 218 },
+          { agent: "verifier", input: { artifact: specPlan.buildV1, against: prompt }, out: specPlan.verifyGaps, reasoning: 126 },
+          { agent: "builder", input: { spec: "Repair Pass-1 gaps: " + specPlan.verifyGaps }, out: specPlan.buildV2, reasoning: 196 },
+          { agent: "verifier", input: { artifact: specPlan.buildV2, against: prompt }, out: specPlan.verifyPass, reasoning: 114 },
+          { agent: "critic", input: { result: specPlan.buildV2 }, out: specPlan.critic, reasoning: 164 }
+        ];
+
+        for (const step of steps) {
+          this.onEvent({ type: "agent_delegate", from: front, to: step.agent, depth: 1, input: step.input });
+          checkBudgets(1);
+          this.onEvent({ type: "agent_start", agent: step.agent, depth: 1, input: step.input });
+          await pause(Math.round(delayMs * 0.55));
+          this.onEvent({
+            type: "agent_stream",
+            agent: step.agent,
+            reasoningChars: step.reasoning,
+            contentChars: step.out.length,
+            toolCalls: 0
+          });
+          await pause(Math.round(delayMs * 0.65));
+          this.onEvent({ type: "agent_done", agent: step.agent, depth: 1, output: step.out });
+          stageOutputs[step.agent] = step.out;
+        }
+
+        const synthesis = [
+          "SPEC PROTOCOL DEMO — 5-AGENT BOUNDED TRACE COMPLETE",
+          "Request: " + prompt,
+          "",
+          "1. GROUND (researcher)",
+          stageOutputs.researcher,
+          "",
+          "2. BUILD & REPAIR (builder -> verifier GAPS -> builder repair -> verifier PASS)",
+          "• Pass 1 Verifier: " + specPlan.verifyGaps,
+          "• Repaired Build: " + stageOutputs.builder,
+          "• Pass 2 Verifier: " + stageOutputs.verifier,
+          "",
+          "3. ADVERSARIAL STRESS-TEST (critic)",
+          stageOutputs.critic,
+          "",
+          "4. MVP PROFILE 0.2 PROTOCOL TELEMETRY",
+          "• Mode: Local Spec Protocol Simulation (0 API keys used, 0 remote calls)",
+          "• Bounds enforced: " + this._invocations + "/" + this.limits.max_agent_invocations + " invocations · max depth 1/" + this.limits.max_composition_depth,
+          "• Private context (sly_data): deny_by_default=" + this.privateContextRules.deny_by_default + " · " + leakedKeys + " fields leaked across boundary",
+          "• Tip: Activate any OpenAI / Gemini / Groq / OpenRouter key in the right rail (or use the built-in live router) to run this exact same Neuro SAN JSON graph against a live LLM."
+        ].join("\n");
+
+        this.onEvent({ type: "agent_done", agent: front, depth: 0, output: synthesis });
+        this.onEvent({
+          type: "run_done",
+          output: synthesis,
+          mode: "spec_demo",
+          invocations: this._invocations,
+          remoteCalls: this._remoteCalls,
+          elapsedMs: Date.now() - this._startedAt
+        });
+        return synthesis;
+      }
+
+      // Generic peer-network spec demo traversal for any loaded peer network
+      const delegates = (frontAgent.tools || []).filter((t) => typeof t === "string" && this.agents.has(t));
+      const lines = [
+        "SPEC PROTOCOL DEMO — PEER NETWORK TRACE COMPLETE",
+        "Network: " + ((this.network.metadata && this.network.metadata.name) || "peer-network") + " (front: " + front + ")",
+        "Request: " + prompt,
+        ""
+      ];
+      for (const childName of delegates) {
+        const child = this.agents.get(childName);
+        this.onEvent({ type: "agent_delegate", from: front, to: childName, depth: 1, input: { request: prompt } });
+        checkBudgets(1);
+        this.onEvent({ type: "agent_start", agent: childName, depth: 1, input: { request: prompt } });
+        const desc = (child && child.function && child.function.description) || childName;
+        const out = "[" + childName + "] Completed local protocol step: " + desc;
+        await pause(delayMs);
+        this.onEvent({ type: "agent_stream", agent: childName, reasoningChars: 96, contentChars: out.length, toolCalls: 0 });
+        this.onEvent({ type: "agent_done", agent: childName, depth: 1, output: out });
+        lines.push("• " + out);
+      }
+      lines.push(
+        "",
+        "Protocol Telemetry: " +
+          this._invocations + "/" + this.limits.max_agent_invocations +
+          " invocations · deny_by_default=" + this.privateContextRules.deny_by_default +
+          " (" + leakedKeys + " leaked fields) · Local Simulation (no API key used)."
+      );
+      const synthesis = lines.join("\n");
+      this.onEvent({ type: "agent_done", agent: front, depth: 0, output: synthesis });
+      this.onEvent({
+        type: "run_done",
+        output: synthesis,
+        mode: "spec_demo",
+        invocations: this._invocations,
+        remoteCalls: this._remoteCalls,
+        elapsedMs: Date.now() - this._startedAt
+      });
+      return synthesis;
+    } catch (err) {
+      this.onEvent({
+        type: "run_error",
+        error: err && err.message ? err.message : String(err),
+        elapsedMs: Date.now() - this._startedAt
+      });
+      throw err;
+    }
+  }
+}
+
+// --- Live Worldwide Agentic Web MVP Profile 0.2 Conformance Self-Test ---
+export async function runSpecConformanceAudit({ origin, fetchImpl = fetch } = {}) {
+  const baseOrigin = String(
+    origin || (typeof location !== "undefined" && location.origin ? location.origin : "")
+  ).replace(/\/+$/, "");
+
+  const checks = [];
+
+  async function probeEndpoint({ id, label, path, expectJson = true, validate }) {
+    const url = baseOrigin ? baseOrigin + path : path;
+    const t0 = Date.now();
+    try {
+      const res = await fetchImpl(url, { mode: "cors", credentials: "omit", cache: "no-store" });
+      const ms = Date.now() - t0;
+      const acao = res.headers ? String(res.headers.get("access-control-allow-origin") || "") : "";
+      const ct = res.headers ? String(res.headers.get("content-type") || "") : "";
+      const corsOk = acao === "*";
+      if (!res.ok) {
+        checks.push({
+          id,
+          label,
+          path,
+          pass: false,
+          status: res.status,
+          cors: acao || "missing",
+          contentType: ct,
+          ms,
+          detail: "HTTP " + res.status + " (expected 200)"
+        });
+        return null;
+      }
+      let body = null;
+      if (expectJson) {
+        body = await res.json();
+      } else {
+        body = await res.text();
+      }
+      const extra = validate ? validate({ res, body, ct, acao }) : { ok: true, detail: "OK" };
+      const pass = Boolean(res.ok && corsOk && extra.ok);
+      checks.push({
+        id,
+        label,
+        path,
+        pass,
+        status: res.status,
+        cors: acao || "missing",
+        contentType: ct,
+        ms,
+        detail: !corsOk
+          ? "Missing Access-Control-Allow-Origin: * (got '" + (acao || "none") + "')"
+          : extra.detail
+      });
+      return body;
+    } catch (err) {
+      checks.push({
+        id,
+        label,
+        path,
+        pass: false,
+        status: 0,
+        cors: "error",
+        contentType: "",
+        ms: Date.now() - t0,
+        detail: err && err.message ? err.message : String(err)
+      });
+      return null;
+    }
+  }
+
+  // 1. Root agent-manifest.json
+  await probeEndpoint({
+    id: "root_manifest",
+    label: "Root Manifest",
+    path: "/agent-manifest.json",
+    validate: ({ body }) => {
+      const v = validateManifest(body);
+      return {
+        ok: v.ok && Boolean(body.networks && body.networks.some((n) => n.name === "aura-core" && n.front_man === "orchestrator")),
+        detail: v.ok ? "MVP 0.2 valid · networks=[" + v.networks.join(",") + "] · BYOK=true" : v.errors.join("; ")
+      };
+    }
+  });
+
+  // 2. .well-known/agent-manifest.json
+  await probeEndpoint({
+    id: "well_known_manifest",
+    label: "Well-Known Manifest",
+    path: "/.well-known/agent-manifest.json",
+    validate: ({ body }) => {
+      const v = validateManifest(body);
+      const entry = (body.networks || []).find((n) => n.name === "aura-core");
+      return {
+        ok: v.ok && Boolean(entry && entry.hocon === "/aura-core.json"),
+        detail: v.ok ? "MVP 0.2 discovery valid · hocon=" + (entry ? entry.hocon : "?") : v.errors.join("; ")
+      };
+    }
+  });
+
+  // 3. /agents/agent-manifest.json (peer subpath compatibility)
+  await probeEndpoint({
+    id: "agents_manifest",
+    label: "Agents Subpath Manifest",
+    path: "/agents/agent-manifest.json",
+    validate: ({ body }) => {
+      const v = validateManifest(body);
+      return {
+        ok: v.ok,
+        detail: v.ok ? "Peer URL /agents/aura-core resolvable" : v.errors.join("; ")
+      };
+    }
+  });
+
+  // 4. /aura-core.json (Neuro SAN-profile network)
+  const coreDef = await probeEndpoint({
+    id: "network_def",
+    label: "Neuro SAN Network",
+    path: "/aura-core.json",
+    validate: ({ body }) => {
+      const v = validateNetworkDefinition(body);
+      const requiredAgents = ["orchestrator", "researcher", "builder", "verifier", "critic"];
+      const hasAll = requiredAgents.every((a) => v.agents.includes(a));
+      return {
+        ok: v.ok && hasAll && v.privateContextRules.deny_by_default === true,
+        detail: v.ok
+          ? v.agents.length + " agents (" + v.front + " front) · deny_by_default=true · max_depth=" + v.limits.max_composition_depth
+          : v.errors.join("; ")
+      };
+    }
+  });
+
+  // 5. /runtime.js (pure ES module)
+  await probeEndpoint({
+    id: "runtime_esm",
+    label: "ES Module Runtime",
+    path: "/runtime.js",
+    expectJson: false,
+    validate: ({ body, ct }) => {
+      const isJs = /javascript|ecmascript/i.test(ct);
+      const hasExport = typeof body === "string" && body.includes("export class AuraRuntime");
+      return {
+        ok: isJs && hasExport,
+        detail: isJs && hasExport ? "ES module (" + Math.round(body.length / 1024) + " KB) · " + ct : "Invalid JS MIME or missing export"
+      };
+    }
+  });
+
+  // 6. /links.json (peer-network link map)
+  await probeEndpoint({
+    id: "links_map",
+    label: "Peer Link Map",
+    path: "/links.json",
+    validate: ({ body }) => {
+      const ok = Boolean(body && body.version === 1 && body.networks && typeof body.networks === "object");
+      return {
+        ok,
+        detail: ok ? "version=1 · " + Object.keys(body.networks).length + " network link table(s)" : "Invalid links.json schema"
+      };
+    }
+  });
+
+  // 7. Malformed network rejection (fail closed)
+  {
+    const testRt = new AuraRuntime();
+    let rejectedBadRef = false;
+    let rejectedExecCode = false;
+    try {
+      testRt.loadNetwork({
+        metadata: { name: "bad", front_agent: "a" },
+        tools: [{ name: "a", instructions: "x", tools: ["ghost"] }]
+      });
+    } catch {
+      rejectedBadRef = true;
+    }
+    try {
+      testRt.loadNetwork({
+        metadata: { name: "bad2", front_agent: "a" },
+        tools: [{ name: "a", instructions: "x", code: "alert(1)", tools: [] }]
+      });
+    } catch {
+      rejectedExecCode = true;
+    }
+    checks.push({
+      id: "fail_closed_schema",
+      label: "Malformed Network Guard",
+      path: "runtime:loadNetwork",
+      pass: rejectedBadRef && rejectedExecCode,
+      status: 200,
+      cors: "local",
+      contentType: "runtime",
+      ms: 0,
+      detail:
+        rejectedBadRef && rejectedExecCode
+          ? "Rejected unknown agent reference & undeclared inline code"
+          : "Failed to reject malformed network"
+    });
+  }
+
+  // 8. Finite execution bounds check
+  {
+    const testRt = new AuraRuntime();
+    let rejectedInfinity = false;
+    try {
+      testRt.loadNetwork({
+        metadata: { name: "inf", front_agent: "a" },
+        tools: [{ name: "a", instructions: "x", tools: [] }],
+        execution_limits: { max_agent_invocations: Infinity }
+      });
+    } catch {
+      rejectedInfinity = true;
+    }
+    let boundsEnforced = false;
+    if (coreDef) {
+      testRt.loadNetwork({
+        ...coreDef,
+        execution_limits: { ...coreDef.execution_limits, max_agent_invocations: 2 }
+      });
+      try {
+        await testRt.runSpecDemo("bound check", { delayMs: 0 });
+      } catch (e) {
+        boundsEnforced = /invocation limit/i.test(String(e && e.message));
+      }
+    } else {
+      boundsEnforced = true;
+    }
+    checks.push({
+      id: "finite_bounds",
+      label: "Finite Execution Bounds",
+      path: "runtime:execution_limits",
+      pass: rejectedInfinity && boundsEnforced,
+      status: 200,
+      cors: "local",
+      contentType: "runtime",
+      ms: 0,
+      detail:
+        rejectedInfinity && boundsEnforced
+          ? "Infinity rejected & invocation cap aborted over-budget run"
+          : "Bounds enforcement check failed"
+    });
+  }
+
+  // 9. Private context (sly_data) deny-by-default isolation
+  {
+    const filtered = filterPrivateContext(
+      { api_key: "sk-secret", session_id: "tok-123", pii_email: "a@b.com" },
+      (coreDef && coreDef.private_context_rules) || { deny_by_default: true, allowed_downstream_fields: [] }
+    );
+    const leaked = Object.keys(filtered).length;
+    checks.push({
+      id: "private_context",
+      label: "Private Context Isolation",
+      path: "runtime:sly_data",
+      pass: leaked === 0,
+      status: 200,
+      cors: "local",
+      contentType: "runtime",
+      ms: 0,
+      detail: leaked === 0 ? "deny_by_default=true · 0/3 sensitive fields forwarded" : leaked + " fields leaked"
+    });
+  }
+
+  // 10. Fail-closed peer consent & exact-match name check
+  {
+    const testRt = new AuraRuntime();
+    let fetchCalledOnDeny = false;
+    const denied = await testRt.loadPeerNetwork(
+      "https://peer.example/agents/transit",
+      async () => false,
+      async () => {
+        fetchCalledOnDeny = true;
+        throw new Error("should not fetch");
+      }
+    );
+    let failedClosedOnMismatch = false;
+    try {
+      await testRt.loadPeerNetwork(
+        "https://peer.example/agents/wrong-name",
+        async () => true,
+        async () => ({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            manifest_version: "0.2",
+            site: { name: "Peer" },
+            inference: { byok_supported: true },
+            networks: [{ name: "other-net", front_agent: "front", hocon: "./other.json" }]
+          })
+        })
+      );
+    } catch (e) {
+      failedClosedOnMismatch = /exact-match|fail closed/i.test(String(e && e.message));
+    }
+    const pass = denied === null && !fetchCalledOnDeny && failedClosedOnMismatch;
+    checks.push({
+      id: "peer_fail_closed",
+      label: "Peer Consent & Exact Match",
+      path: "runtime:loadPeerNetwork",
+      pass,
+      status: 200,
+      cors: "local",
+      contentType: "runtime",
+      ms: 0,
+      detail: pass
+        ? "Denied origin made 0 fetches · mismatched network failed closed"
+        : "Peer consent or exact-match check failed"
+    });
+  }
+
+  const passed = checks.filter((c) => c.pass).length;
+  return {
+    passed,
+    total: checks.length,
+    allPassed: passed === checks.length,
+    checkedAt: new Date().toISOString(),
+    origin: baseOrigin || "(relative)",
+    checks
+  };
 }

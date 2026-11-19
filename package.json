@@ -1,0 +1,11 @@
+{
+  "name": "aura-agentic-web",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "description": "AURA Agentic Web — Portable 5-agent Neuro SAN browser network conforming to Worldwide Agentic Web MVP Profile 0.2",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/spec-conformance.test.mjs"
+  }
+}

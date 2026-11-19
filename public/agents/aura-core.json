@@ -1,8 +1,11 @@
 {
   "metadata": {
     "name": "aura-core",
-    "description": "AURA's core orchestration network. A front orchestrator agent decomposes a request and delegates to specialist agents (researcher, builder, verifier, critic) in a plan-work-verify-repair loop, then returns a single synthesized answer.",
-    "front_agent": "orchestrator"
+    "version": "0.2.0",
+    "spec_profile": "worldwide-agentic-web-mvp-0.2",
+    "description": "AURA's core orchestration network. A front orchestrator agent decomposes a request and delegates to specialist agents (researcher, builder, verifier, critic) in a bounded plan-work-verify-repair loop, then returns a single synthesized answer.",
+    "front_agent": "orchestrator",
+    "front_man": "orchestrator"
   },
   "tools": [
     {
@@ -17,7 +20,8 @@
               "description": "The user's task or question for the AURA agent network."
             }
           },
-          "required": ["request"]
+          "required": ["request"],
+          "additionalProperties": false
         }
       },
       "instructions": "You are the ORCHESTRATOR of the AURA agent network. Given a request: (1) plan the smallest set of steps, (2) call the researcher for grounding when facts are needed, (3) call the builder to produce the artifact or answer, (4) call the verifier to check it against the request, (5) if the verifier finds substantive gaps, loop back to the builder once with the gaps, then (6) call the critic for a final adversarial pass. Each specialist runs in an isolated context and sees ONLY the arguments you pass to it, so pass complete artifacts and specifications rather than referencing prior turns. Synthesize everything into one clear, direct answer. Report honestly what was and was not verified. Never claim success without the verifier's confirmation.",
@@ -30,9 +34,13 @@
         "parameters": {
           "type": "object",
           "properties": {
-            "query": { "type": "string", "description": "What to research or ground." }
+            "query": {
+              "type": "string",
+              "description": "What to research or ground."
+            }
           },
-          "required": ["query"]
+          "required": ["query"],
+          "additionalProperties": false
         }
       },
       "instructions": "You are the RESEARCHER. Return concise, grounded findings for the query. State what is known with confidence and flag what is uncertain. Prefer specific facts over generalities. Do not invent sources.",
@@ -45,9 +53,13 @@
         "parameters": {
           "type": "object",
           "properties": {
-            "spec": { "type": "string", "description": "What to build or answer, including any research context and prior-pass gaps." }
+            "spec": {
+              "type": "string",
+              "description": "What to build or answer, including any research context and prior-pass gaps."
+            }
           },
-          "required": ["spec"]
+          "required": ["spec"],
+          "additionalProperties": false
         }
       },
       "instructions": "You are the BUILDER. Produce the concrete deliverable the spec asks for: code, a plan, a written answer. Be complete and precise. If the spec includes gaps from a prior verification pass, address each one explicitly.",
@@ -60,10 +72,17 @@
         "parameters": {
           "type": "object",
           "properties": {
-            "artifact": { "type": "string", "description": "The builder's output to check." },
-            "against": { "type": "string", "description": "The original request to verify against." }
+            "artifact": {
+              "type": "string",
+              "description": "The builder's output to check."
+            },
+            "against": {
+              "type": "string",
+              "description": "The original request to verify against."
+            }
           },
-          "required": ["artifact", "against"]
+          "required": ["artifact", "against"],
+          "additionalProperties": false
         }
       },
       "instructions": "You are the VERIFIER. Check the artifact against the original request. Return a short verdict (PASS or GAPS) and, if GAPS, an itemized list of exactly what is missing or wrong. Be strict and specific. Do not rubber-stamp.",
@@ -76,9 +95,13 @@
         "parameters": {
           "type": "object",
           "properties": {
-            "result": { "type": "string", "description": "The verified result to critique." }
+            "result": {
+              "type": "string",
+              "description": "The verified result to critique."
+            }
           },
-          "required": ["result"]
+          "required": ["result"],
+          "additionalProperties": false
         }
       },
       "instructions": "You are the CRITIC. Give a final adversarial read of the result: name the strongest weakness, one realistic failure mode, and one concrete improvement. Keep it short and honest. If the result is genuinely solid, say so plainly.",
@@ -88,17 +111,20 @@
   "private_context_rules": {
     "deny_by_default": true,
     "allowed_downstream_fields": [],
-    "note": "No private-context (sly_data) fields cross agent-site boundaries. Deny-by-default per spec section 2.1."
+    "allowed_upstream_fields": [],
+    "note": "No private-context (sly_data) fields cross agent-site boundaries. Deny-by-default per Worldwide Agentic Web MVP Profile 0.2 section 2.1 and section 5."
   },
   "execution_limits": {
     "max_composition_depth": 4,
     "max_agent_invocations": 40,
     "max_remote_calls": 40,
+    "max_concurrency": 4,
     "max_elapsed_seconds": 900,
-    "note": "Finite bounds per spec section 3.1. Repeated invocation of the same agent is not itself a cycle. The orchestrator does one model round-trip per delegation, so a full plan-work-verify-repair pass over five agents needs well above a dozen remote calls; bounds are set to comfortably fit one loop plus a repair iteration while staying finite."
+    "note": "Finite bounds per Worldwide Agentic Web MVP Profile 0.2 section 3.1. Repeated invocation of the same agent is not itself a cycle. Bounds comfortably fit one full plan-work-verify-repair-critique loop while staying strictly finite."
   },
   "model_hints": {
     "note": "Model names and generation settings are hints only. The caller's active router and model policy (including a visitor BYOK selection) take precedence per spec section 2.1.",
-    "suggested_model": "any OpenAI-compatible chat model with tool-calling"
+    "suggested_model": "any OpenAI-compatible chat model with tool-calling",
+    "capabilities_required": ["tool_calling"]
   }
 }

@@ -1,0 +1,55 @@
+{
+  "manifest_version": "0.2",
+  "spec_profile": "worldwide-agentic-web-mvp-0.2",
+  "site": {
+    "name": "AURA Agentic Web",
+    "description": "AURA's portable multi-agent brain published as an open agentic network: a plan/research/build/verify/critique loop any conforming runtime can load and run in the browser.",
+    "publisher": "AURA / Weni",
+    "homepage": "https://aura-agentic-web.vercel.app",
+    "runtime": "/runtime.js"
+  },
+  "inference": {
+    "default_router": {
+      "type": "openai-compatible",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4o-mini",
+      "note": "Site-provided default is a placeholder; visitors may use the BYOK panel to supply any OpenAI-compatible router + key (OpenAI, Gemini, Groq, OpenRouter), use the zero-setup server demo router when configured, or run the local Spec Protocol Demo with no key required. No publisher credential ships in this manifest."
+    },
+    "byok_supported": true,
+    "relay_endpoint": "/api/relay",
+    "interactive_spec_demo": true
+  },
+  "networks": [
+    {
+      "name": "aura-core",
+      "description": "AURA's core orchestration network: an orchestrator front agent that delegates to researcher, builder, verifier, and critic agents in a bounded plan-work-verify-repair loop.",
+      "front_agent": "orchestrator",
+      "front_man": "orchestrator",
+      "hocon": "./aura-core.json",
+      "tags": ["orchestration", "research", "build", "verify", "critique"],
+      "execution_limits": {
+        "max_composition_depth": 4,
+        "max_agent_invocations": 40,
+        "max_remote_calls": 40,
+        "max_concurrency": 4,
+        "max_elapsed_seconds": 900
+      },
+      "private_context_policy": {
+        "deny_by_default": true,
+        "allowed_downstream_fields": [],
+        "allowed_upstream_fields": []
+      }
+    }
+  ],
+  "links": "./links.json",
+  "peer_links": {
+    "aura-core-self": "https://aura-agentic-web.vercel.app/agents/aura-core",
+    "note": "Named references to other published agent-network URLs can be added here or in links.json. The runtime also accepts a direct peer URL whose final path component is the exact network name."
+  },
+  "peer_policy": {
+    "allow_origins": ["*"],
+    "consent_required": true,
+    "fail_closed_name_matching": true,
+    "note": "This site permits loading peer agent networks from any HTTPS origin, subject to explicit per-origin user consent, exact-match network resolution, and browser CORS enforced by the runtime."
+  }
+}
