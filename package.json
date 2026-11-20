@@ -1,6 +1,6 @@
 {
   "name": "aura-agentic-web",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "description": "AURA Agentic Web — Portable 5-agent Neuro SAN browser network conforming to Worldwide Agentic Web MVP Profile 0.2",

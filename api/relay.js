@@ -357,8 +357,17 @@ export default async function handler(req) {
     });
   }
 
-  if (method === "GET") {
+  if (method === "GET" || method === "HEAD") {
     const demo = getDemoConfig();
+    if (method === "HEAD") {
+      return new Response(null, {
+        status: 200,
+        headers: {
+          ...CORS_HEADERS,
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      });
+    }
     return jsonResponse(200, {
       ok: true,
       demoAvailable: demo.available,

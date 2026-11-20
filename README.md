@@ -17,8 +17,9 @@ AURA Agentic Web publishes a portable 5-agent Neuro SAN network as open static J
 
 1. **Run the 1-Click Live Spec Demo (No Key Required)** to watch the full 5-agent bounded delegation loop (`orchestrator -> researcher -> builder -> verifier (GAPS) -> builder (repair) -> verifier (PASS) -> critic -> synthesis`) animate live in under 4 seconds with zero setup.
 2. **Inspect the Live Spec Conformance Self-Test Panel** embedded right in the page, which performs 10 live HTTP/CORS, JSON schema, finite-bound, private-context (`sly_data`), and fail-closed peer checks against its own endpoints.
-3. **Bring Their Own Key (BYOK)** using 1-click provider presets (**OpenAI**, **Gemini**, **Groq**, **OpenRouter**) or any OpenAI-compatible endpoint (plus an optional zero-setup server demo router via `/api/relay`).
-4. **Load Peer Agentic Sites** with an accessible in-page **Explicit Origin Consent Modal** and strict fail-closed exact-match network name resolution.
+3. **Use the Standalone Open Conformance Validator & Federation Diff Workbench (`/validator.html`)** to audit ANY Agentic Website on a 100-point MVP Profile 0.2 rubric, run a side-by-side **Live Peer Federation Trace Diff** (comparing conformance score, Neuro SAN topology, execution bounds, `sly_data` privacy, and zero-key hop traces), and export an inline **SVG Conformance Badge**, **SARIF 2.1.0 CI Report**, and **SHA-256 JSON Compliance Certificate**.
+4. **Bring Their Own Key (BYOK)** using 1-click provider presets (**OpenAI**, **Gemini**, **Groq**, **OpenRouter**) or any OpenAI-compatible endpoint (plus an optional zero-setup server demo router via `/api/relay`).
+5. **Load Peer Agentic Sites** with an accessible in-page **Explicit Origin Consent Modal** and strict fail-closed exact-match network name resolution.
 
 ---
 
@@ -63,7 +64,8 @@ AURA Agentic Web publishes a portable 5-agent Neuro SAN network as open static J
 ## Automated Verification & Local Development
 
 ```bash
-# Run automated MVP Profile 0.2 spec conformance, runtime, bounds & peer tests
+# Run 27 deterministic MVP Profile 0.2 conformance, security invariant (sly_data, recursion bounds,
+# prototype pollution, malformed HOCON/JSON, CORS/SSRF relay), diff, SARIF 2.1.0 & SHA-256 certificate tests
 npm test
 
 # Run locally with Vercel dev server

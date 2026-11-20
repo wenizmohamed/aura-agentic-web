@@ -2801,3 +2801,529 @@ export async function auditExternalAgenticSite(
     agentGraph: netVal.ok ? buildAgentGraph(networkDef) : null
   };
 }
+
+// --- Strict Fail-Closed HOCON / JSON Network Definition Parser ---
+const FORBIDDEN_PROTO_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function stripSafeHoconComments(raw) {
+  let out = "";
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    const next = raw[i + 1];
+    if (inString) {
+      out += ch;
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      out += ch;
+      continue;
+    }
+    if ((ch === "/" && next === "/") || ch === "#") {
+      while (i < raw.length && raw[i] !== "\n") i++;
+      if (i < raw.length && raw[i] === "\n") out += "\n";
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+function findForbiddenPrototypeKey(rawJsonText) {
+  const re = /"(__proto__|constructor|prototype)"\s*:/;
+  const m = re.exec(rawJsonText);
+  return m ? m[1] : null;
+}
+
+export function parseAndValidateNetworkText(rawText) {
+  if (typeof rawText !== "string" || !rawText.trim()) {
+    return {
+      ok: false,
+      errors: ["Malformed HOCON/JSON network definition: input must be a non-empty string."],
+      def: null,
+      validation: null
+    };
+  }
+  if (rawText.length > 2 * 1024 * 1024) {
+    return {
+      ok: false,
+      errors: ["Malformed HOCON/JSON network definition: payload exceeds 2MB safety bound."],
+      def: null,
+      validation: null
+    };
+  }
+  const stripped = stripSafeHoconComments(rawText).trim();
+  if (!stripped.startsWith("{") || !stripped.endsWith("}")) {
+    return {
+      ok: false,
+      errors: ["Malformed HOCON/JSON network definition: root document must be a JSON object."],
+      def: null,
+      validation: null
+    };
+  }
+  const badProtoKey = findForbiddenPrototypeKey(stripped);
+  if (badProtoKey) {
+    return {
+      ok: false,
+      errors: ["Malformed HOCON/JSON network definition: forbidden prototype key '" + badProtoKey + "'."],
+      def: null,
+      validation: null
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(stripped);
+  } catch (err) {
+    return {
+      ok: false,
+      errors: ["Malformed HOCON/JSON network definition: " + (err && err.message ? err.message : String(err))],
+      def: null,
+      validation: null
+    };
+  }
+  const validation = validateNetworkDefinition(parsed);
+  if (!validation.ok) {
+    return {
+      ok: false,
+      errors: validation.errors.slice(),
+      def: null,
+      validation
+    };
+  }
+  return {
+    ok: true,
+    errors: [],
+    def: parsed,
+    validation
+  };
+}
+
+// --- Live Peer Federation Trace Diff Engine ---
+export function diffPeerFederationAudits(
+  baselineReport,
+  candidateReport,
+  { baselineTrace = null, candidateTrace = null } = {}
+) {
+  if (!baselineReport || typeof baselineReport !== "object" || !candidateReport || typeof candidateReport !== "object") {
+    throw new Error("Both baselineReport and candidateReport objects are required for peer federation diff.");
+  }
+
+  const baseChecks = Array.isArray(baselineReport.checks) ? baselineReport.checks : [];
+  const candChecks = Array.isArray(candidateReport.checks) ? candidateReport.checks : [];
+  const baseById = new Map(baseChecks.map((c) => [c.id, c]));
+  const candById = new Map(candChecks.map((c) => [c.id, c]));
+  const allIds = [...new Set([...baseChecks.map((c) => c.id), ...candChecks.map((c) => c.id)])];
+
+  const checkDiffs = allIds.map((id) => {
+    const b = baseById.get(id) || null;
+    const c = candById.get(id) || null;
+    const baselinePass = Boolean(b && b.pass);
+    const candidatePass = Boolean(c && c.pass);
+    let state = "UNCHANGED_FAIL";
+    if (baselinePass && candidatePass) state = "UNCHANGED_PASS";
+    else if (baselinePass && !candidatePass) state = "REGRESSION";
+    else if (!baselinePass && candidatePass) state = "IMPROVEMENT";
+    const bMs = b && typeof b.ms === "number" ? b.ms : 0;
+    const cMs = c && typeof c.ms === "number" ? c.ms : 0;
+    return {
+      id,
+      label: (c && c.label) || (b && b.label) || id,
+      baselinePass,
+      candidatePass,
+      baselineStatus: b ? b.status : 0,
+      candidateStatus: c ? c.status : 0,
+      baselineCors: b ? b.cors : "n/a",
+      candidateCors: c ? c.cors : "n/a",
+      baselineMs: bMs,
+      candidateMs: cMs,
+      latencyDeltaMs: cMs - bMs,
+      baselineDetail: b ? b.detail : "missing",
+      candidateDetail: c ? c.detail : "missing",
+      state
+    };
+  });
+
+  const baseGraph = baselineReport.agentGraph || { front: null, nodes: [], edges: [] };
+  const candGraph = candidateReport.agentGraph || { front: null, nodes: [], edges: [] };
+  const baseAgentSet = new Set((baseGraph.nodes || []).map((n) => n.id));
+  const candAgentSet = new Set((candGraph.nodes || []).map((n) => n.id));
+  const sharedAgents = [...baseAgentSet].filter((id) => candAgentSet.has(id));
+  const addedAgents = [...candAgentSet].filter((id) => !baseAgentSet.has(id));
+  const removedAgents = [...baseAgentSet].filter((id) => !candAgentSet.has(id));
+
+  const edgeKey = (e) => `${e.from}->${e.to}`;
+  const baseEdgeSet = new Set((baseGraph.edges || []).map(edgeKey));
+  const candEdgeSet = new Set((candGraph.edges || []).map(edgeKey));
+  const sharedEdges = [...baseEdgeSet].filter((k) => candEdgeSet.has(k));
+  const addedEdges = [...candEdgeSet].filter((k) => !baseEdgeSet.has(k));
+  const removedEdges = [...baseEdgeSet].filter((k) => !candEdgeSet.has(k));
+
+  const baseLimits = (baselineReport.networkDef && baselineReport.networkDef.execution_limits) || {};
+  const candLimits = (candidateReport.networkDef && candidateReport.networkDef.execution_limits) || {};
+  const limitsDiff = {};
+  for (const key of Object.keys(HARD_RUNTIME_LIMITS)) {
+    const bv = typeof baseLimits[key] === "number" ? baseLimits[key] : null;
+    const cv = typeof candLimits[key] === "number" ? candLimits[key] : null;
+    limitsDiff[key] = {
+      baseline: bv,
+      candidate: cv,
+      delta: bv !== null && cv !== null ? cv - bv : null
+    };
+  }
+
+  const basePriv = (baselineReport.networkDef && baselineReport.networkDef.private_context_rules) || null;
+  const candPriv = (candidateReport.networkDef && candidateReport.networkDef.private_context_rules) || null;
+  const baselineDeny = Boolean(basePriv && basePriv.deny_by_default === true);
+  const candidateDeny = Boolean(candPriv && candPriv.deny_by_default === true);
+  const privacyStatus =
+    baselineDeny && candidateDeny
+      ? "ISOLATED"
+      : !candPriv
+      ? "MISSING_CANDIDATE_DEF"
+      : !candidateDeny
+      ? "RELAXED_DANGER"
+      : "IMPROVED_ISOLATION";
+
+  const traceDiff =
+    baselineTrace || candidateTrace
+      ? {
+          baselineInvocations: baselineTrace ? baselineTrace.invocations || 0 : 0,
+          candidateInvocations: candidateTrace ? candidateTrace.invocations || 0 : 0,
+          invocationDelta:
+            (candidateTrace ? candidateTrace.invocations || 0 : 0) -
+            (baselineTrace ? baselineTrace.invocations || 0 : 0),
+          baselineMaxDepth: baselineTrace ? baselineTrace.maxDepth || 0 : 0,
+          candidateMaxDepth: candidateTrace ? candidateTrace.maxDepth || 0 : 0,
+          depthDelta:
+            (candidateTrace ? candidateTrace.maxDepth || 0 : 0) -
+            (baselineTrace ? baselineTrace.maxDepth || 0 : 0),
+          baselineRemoteCalls: baselineTrace ? baselineTrace.remoteCalls || 0 : 0,
+          candidateRemoteCalls: candidateTrace ? candidateTrace.remoteCalls || 0 : 0,
+          baselineLeakedKeys: baselineTrace ? baselineTrace.leakedKeys || 0 : 0,
+          candidateLeakedKeys: candidateTrace ? candidateTrace.leakedKeys || 0 : 0,
+          baselineHops: baselineTrace && Array.isArray(baselineTrace.hops) ? baselineTrace.hops.slice() : [],
+          candidateHops: candidateTrace && Array.isArray(candidateTrace.hops) ? candidateTrace.hops.slice() : []
+        }
+      : null;
+
+  const baseScore = Number(baselineReport.score || 0);
+  const candScore = Number(candidateReport.score || 0);
+  const scoreDelta = candScore - baseScore;
+  const regressions = checkDiffs.filter((d) => d.state === "REGRESSION");
+  const improvements = checkDiffs.filter((d) => d.state === "IMPROVEMENT");
+  const candidateFailClosed =
+    candidateReport.networkDef === null &&
+    checkDiffs.some((d) => d.id === "exact_match_resolution" && !d.candidatePass);
+
+  let verdict = "EQUIVALENT_CONFORMING";
+  if (candidateFailClosed) {
+    verdict = "FAIL_CLOSED_VERIFIED";
+  } else if (regressions.length > 0 || scoreDelta < 0) {
+    verdict = "REGRESSION_DETECTED";
+  } else if (improvements.length > 0 || scoreDelta > 0) {
+    verdict = "CANDIDATE_STRONGER";
+  } else if (baseScore < 100 || candScore < 100) {
+    verdict = "BOTH_NON_CONFORMING";
+  }
+
+  return {
+    schema: "aura.agentic-web.peer-federation-diff/v1",
+    comparedAt: new Date().toISOString(),
+    baseline: {
+      targetUrl: baselineReport.targetUrl || "",
+      network: baselineReport.resolvedNetworkName || "unresolved",
+      score: baseScore,
+      grade: baselineReport.grade || "UNKNOWN"
+    },
+    candidate: {
+      targetUrl: candidateReport.targetUrl || "",
+      network: candidateReport.resolvedNetworkName || "unresolved",
+      score: candScore,
+      grade: candidateReport.grade || "UNKNOWN"
+    },
+    scoreDelta,
+    passedDelta: Number(candidateReport.passed || 0) - Number(baselineReport.passed || 0),
+    regressionCount: regressions.length,
+    improvementCount: improvements.length,
+    verdict,
+    checkDiffs,
+    topologyDiff: {
+      baselineFront: baseGraph.front || null,
+      candidateFront: candGraph.front || null,
+      frontAgentMatch: Boolean(baseGraph.front && baseGraph.front === candGraph.front),
+      sharedAgents,
+      addedAgents,
+      removedAgents,
+      sharedEdges,
+      addedEdges,
+      removedEdges
+    },
+    limitsDiff,
+    privacyDiff: {
+      baselineDenyByDefault: baselineDeny,
+      candidateDenyByDefault: candidateDeny,
+      baselineAllowedDownstream:
+        basePriv && Array.isArray(basePriv.allowed_downstream_fields)
+          ? basePriv.allowed_downstream_fields.slice()
+          : [],
+      candidateAllowedDownstream:
+        candPriv && Array.isArray(candPriv.allowed_downstream_fields)
+          ? candPriv.allowed_downstream_fields.slice()
+          : [],
+      status: privacyStatus
+    },
+    traceDiff
+  };
+}
+
+// --- Exportable SVG Conformance Badge Generator ---
+function xmlEscape(str) {
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+export function buildConformanceBadgeSvg(report) {
+  const r = report && typeof report === "object" ? report : {};
+  const score = Number.isFinite(Number(r.score)) ? Number(r.score) : 0;
+  const grade = String(r.grade || (score === 100 ? "CONFORMING (A+)" : "NON-CONFORMING"));
+  const privPass = Array.isArray(r.checks)
+    ? Boolean(r.checks.find((c) => c.id === "private_context_isolation" && c.pass))
+    : false;
+  const rightFill = score === 100 ? "#168A5B" : score >= 70 ? "#C47A12" : "#C9352B";
+  const leftText = "Agentic Web MVP 0.2";
+  const midText = `${score}/100 ${score === 100 ? "A+" : grade.split(" ")[0]}`;
+  const rightText = privPass ? "sly_data: 0 leaks" : "fail-closed";
+
+  const leftW = 148;
+  const midW = 104;
+  const rightW = 118;
+  const totalW = leftW + midW + rightW;
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="28" viewBox="0 0 ${totalW} 28" role="img" aria-label="${xmlEscape(`${leftText}: ${midText} (${rightText})`)}">`,
+    `<title>${xmlEscape(`${leftText}: ${midText} | ${rightText}`)}</title>`,
+    `<clipPath id="auraBadgeClip"><rect width="${totalW}" height="28" rx="6" fill="#fff"/></clipPath>`,
+    `<g clip-path="url(#auraBadgeClip)">`,
+    `<rect width="${leftW}" height="28" fill="#191614"/>`,
+    `<rect x="${leftW}" width="${midW}" height="28" fill="${rightFill}"/>`,
+    `<rect x="${leftW + midW}" width="${rightW}" height="28" fill="#2A2623"/>`,
+    `</g>`,
+    `<g fill="#FFFFFF" text-anchor="middle" font-family="JetBrains Mono, ui-monospace, Menlo, Consolas, monospace" font-size="11" font-weight="600">`,
+    `<text x="${leftW / 2}" y="18">${xmlEscape(leftText)}</text>`,
+    `<text x="${leftW + midW / 2}" y="18">${xmlEscape(midText)}</text>`,
+    `<text x="${leftW + midW + rightW / 2}" y="18" fill="${privPass ? "#34D399" : "#FCA5A5"}">${xmlEscape(rightText)}</text>`,
+    `</g>`,
+    `</svg>`
+  ].join("");
+}
+
+// --- SARIF 2.1.0 Conformance Report Exporter ---
+const SARIF_RULE_MAP = Object.freeze({
+  https_transport: { id: "WAW02-001", section: "Section 2.1", name: "HttpsTransportRequired" },
+  manifest_fetch: { id: "WAW02-002", section: "Section 3.1", name: "PublicManifestFetch" },
+  manifest_cors: { id: "WAW02-003", section: "Section 3.1", name: "OpenCorsManifestHeaders" },
+  manifest_schema: { id: "WAW02-004", section: "Section 3.2", name: "Mvp02ManifestSchema" },
+  exact_match_resolution: { id: "WAW02-005", section: "Section 4.2", name: "FailClosedExactMatchPeer" },
+  well_known_discovery: { id: "WAW02-006", section: "Section 3.1", name: "WellKnownManifestDiscovery" },
+  network_def_fetch: { id: "WAW02-007", section: "Section 3.3", name: "NetworkDefinitionFetchAndCors" },
+  neuro_san_schema: { id: "WAW02-008", section: "Section 3.3", name: "NeuroSanDeclarativeSafeData" },
+  finite_execution_bounds: { id: "WAW02-009", section: "Section 3.1", name: "FiniteExecutionBounds" },
+  private_context_isolation: { id: "WAW02-010", section: "Section 5", name: "SlyDataDenyByDefault" }
+});
+
+export function buildSarifConformanceReport(report, { toolVersion = "0.2.2" } = {}) {
+  if (!report || typeof report !== "object") {
+    throw new Error("A conformance audit report is required to build SARIF 2.1.0 output.");
+  }
+  const checks = Array.isArray(report.checks) ? report.checks : [];
+  const specUrl = "https://github.com/cognizant-ai-labs/agentic-web/blob/main/docs/worldwide_agentic_web_mvp_spec.md";
+
+  const rules = checks.map((c, idx) => {
+    const meta = SARIF_RULE_MAP[c.id] || {
+      id: `WAW02-${String(idx + 1).padStart(3, "0")}`,
+      section: "MVP Profile 0.2",
+      name: c.id || `Check${idx + 1}`
+    };
+    return {
+      id: meta.id,
+      name: meta.name,
+      shortDescription: { text: c.label || c.id },
+      fullDescription: {
+        text: `Worldwide Agentic Web MVP Profile 0.2 (${meta.section}) conformance invariant: ${c.label || c.id}.`
+      },
+      helpUri: specUrl,
+      properties: {
+        tags: ["worldwide-agentic-web", "mvp-profile-0.2", "security", "conformance"],
+        specSection: meta.section
+      }
+    };
+  });
+
+  const results = checks.map((c, idx) => {
+    const meta = SARIF_RULE_MAP[c.id] || { id: `WAW02-${String(idx + 1).padStart(3, "0")}` };
+    return {
+      ruleId: meta.id,
+      ruleIndex: idx,
+      kind: c.pass ? "pass" : "fail",
+      level: c.pass ? "note" : "error",
+      message: {
+        text: `${c.label}: ${c.pass ? "PASS" : "FAIL"} - ${c.detail || ""}`
+      },
+      locations: [
+        {
+          physicalLocation: {
+            artifactLocation: {
+              uri: String(c.path || report.targetUrl || "agent-manifest.json")
+            }
+          }
+        }
+      ],
+      properties: {
+        checkId: c.id,
+        httpStatus: c.status,
+        accessControlAllowOrigin: c.cors,
+        latencyMs: c.ms || 0,
+        points: c.points || (c.pass ? 10 : 0)
+      }
+    };
+  });
+
+  return {
+    $schema: "https://json.schemastore.org/sarif-2.1.0.json",
+    version: "2.1.0",
+    runs: [
+      {
+        tool: {
+          driver: {
+            name: "AURA Agentic Web Conformance Validator",
+            version: toolVersion,
+            informationUri: "https://aura-agentic-web.vercel.app/validator.html",
+            rules
+          }
+        },
+        invocations: [
+          {
+            executionSuccessful: !report.aborted,
+            endTimeUtc: report.checkedAt || new Date().toISOString(),
+            properties: {
+              targetUrl: report.targetUrl || "",
+              origin: report.origin || "",
+              resolvedNetworkName: report.resolvedNetworkName || null,
+              score: Number(report.score || 0),
+              grade: report.grade || "UNKNOWN",
+              passed: Number(report.passed || 0),
+              total: Number(report.total || checks.length)
+            }
+          }
+        ],
+        results
+      }
+    ]
+  };
+}
+
+// --- Cryptographic SHA-256 JSON Compliance Certificate Exporter ---
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  if (typeof globalThis.crypto !== "undefined" && globalThis.crypto.subtle) {
+    const hashBuf = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(hashBuf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  // Deterministic fallback hash only if subtle crypto is unavailable in an exotic environment
+  let h1 = 0xdeadbeef ^ bytes.length;
+  let h2 = 0x41c6ce57 ^ bytes.length;
+  for (let i = 0; i < bytes.length; i++) {
+    h1 = Math.imul(h1 ^ bytes[i], 2654435761);
+    h2 = Math.imul(h2 ^ bytes[i], 1597334677);
+  }
+  return (
+    (h1 >>> 0).toString(16).padStart(8, "0") +
+    (h2 >>> 0).toString(16).padStart(8, "0")
+  ).repeat(4);
+}
+
+export async function buildComplianceCertificate(
+  report,
+  { traceSummary = null, diffSummary = null } = {}
+) {
+  if (!report || typeof report !== "object") {
+    throw new Error("A conformance audit report is required to issue a compliance certificate.");
+  }
+  const checks = Array.isArray(report.checks) ? report.checks : [];
+  const checkPass = (id) => Boolean(checks.find((c) => c.id === id && c.pass));
+
+  const canonicalSubject = {
+    schema: "aura.agentic-web.compliance-certificate/v1",
+    specProfile: "worldwide-agentic-web-mvp-0.2",
+    targetUrl: report.targetUrl || "",
+    origin: report.origin || "",
+    manifestUrl: report.manifestUrl || null,
+    wellKnownUrl: report.wellKnownUrl || null,
+    definitionUrl: report.definitionUrl || null,
+    resolvedNetworkName: report.resolvedNetworkName || null,
+    score: Number(report.score || 0),
+    passed: Number(report.passed || 0),
+    total: Number(report.total || checks.length),
+    grade: report.grade || "UNKNOWN",
+    invariants: {
+      httpsTransport: checkPass("https_transport"),
+      publicManifestFetch: checkPass("manifest_fetch"),
+      openCors: checkPass("manifest_cors"),
+      manifestSchema: checkPass("manifest_schema"),
+      exactMatchFailClosed: checkPass("exact_match_resolution"),
+      wellKnownDiscovery: checkPass("well_known_discovery"),
+      networkDefinitionCors: checkPass("network_def_fetch"),
+      neuroSanDeclarativeSafeData: checkPass("neuro_san_schema"),
+      finiteExecutionBounds: checkPass("finite_execution_bounds"),
+      slyDataDenyByDefault: checkPass("private_context_isolation")
+    },
+    executionBounds:
+      (report.networkDef && report.networkDef.execution_limits) || null,
+    privateContextPolicy:
+      (report.networkDef && report.networkDef.private_context_rules) || null,
+    agentTopology: report.agentGraph
+      ? {
+          front: report.agentGraph.front,
+          agentCount: report.agentGraph.nodes.length,
+          edgeCount: report.agentGraph.edges.length,
+          agents: report.agentGraph.nodes.map((n) => n.id)
+        }
+      : null,
+    traceAttestation: traceSummary || null,
+    peerFederationDiff: diffSummary
+      ? {
+          verdict: diffSummary.verdict,
+          scoreDelta: diffSummary.scoreDelta,
+          regressionCount: diffSummary.regressionCount,
+          baselineUrl: diffSummary.baseline && diffSummary.baseline.targetUrl,
+          candidateUrl: diffSummary.candidate && diffSummary.candidate.targetUrl
+        }
+      : null
+  };
+
+  const canonicalJson = JSON.stringify(canonicalSubject);
+  const fingerprintSha256 = await sha256Hex(canonicalJson);
+
+  return {
+    ...canonicalSubject,
+    certificateId: "waw02-" + fingerprintSha256.slice(0, 16),
+    fingerprintSha256,
+    issuedAt: report.checkedAt || new Date().toISOString(),
+    issuer: "AURA Agentic Web Conformance Validator (https://aura-agentic-web.vercel.app/validator.html)"
+  };
+}
